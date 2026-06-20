@@ -1,0 +1,32 @@
+# Environments
+env
+.env
+.env.local
+.env.production
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+backend/env/
+backend/venv/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# others
+/important

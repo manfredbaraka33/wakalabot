@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/wakalabot_logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WakalaBot — AI Business Hub</title>
+    <script>
+      (function () {
+        if (localStorage.getItem('theme') === 'light')
+          document.documentElement.classList.add('light')
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
