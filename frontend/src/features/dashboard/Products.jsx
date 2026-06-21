@@ -18,7 +18,7 @@ const EMPTY_FORM = {
 }
 
 // ── Product form modal (create / edit) ───────────────────────────────────────
-function ProductModal({ product, onClose, onSave, isSaving }) {
+function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
   const isNew = !product
   const [form, setForm] = useState(
     isNew
@@ -182,6 +182,11 @@ function ProductModal({ product, onClose, onSave, isSaving }) {
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (!file) return
+                if (file.size > 5 * 1024 * 1024) {
+                  alert('Picha ni kubwa mno. Tafadhali chagua picha chini ya 5MB.')
+                  e.target.value = ''
+                  return
+                }
                 setImageFile(file)
                 setImagePreview(URL.createObjectURL(file))
               }}
@@ -209,7 +214,13 @@ function ProductModal({ product, onClose, onSave, isSaving }) {
         </form>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-800 shrink-0">
+        <div className="flex flex-col gap-3 px-6 py-4 border-t border-gray-800 shrink-0">
+          {errorMessage && (
+            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              {errorMessage}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -230,6 +241,7 @@ function ProductModal({ product, onClose, onSave, isSaving }) {
             )}
           </button>
         </div>
+      </div>
       </div>
     </div>
   )
@@ -333,10 +345,6 @@ export default function Products() {
   const [editTarget, setEditTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  // const { data, isLoading, isError } = useQuery({
-  //   queryKey: ['products'],
-  //   queryFn: productsApi.list,
-  // })
 
   const { data, isLoading, isError } = useQuery({
   queryKey: ['products'],
@@ -354,6 +362,7 @@ export default function Products() {
       queryClient.invalidateQueries({ queryKey: ['products'] })
       setEditTarget(null)
     },
+    onError: () => {}, // handled via isError below, modal stays open so user can retry
   })
 
   const updateMutation = useMutation({
@@ -362,7 +371,17 @@ export default function Products() {
       queryClient.invalidateQueries({ queryKey: ['products'] })
       setEditTarget(null)
     },
+    onError: () => {},
   })
+
+  const saveError = createMutation.error || updateMutation.error
+  const saveErrorMessage =
+    saveError?.response?.data?.detail ||
+    (saveError?.response?.status === 413
+      ? 'Picha ni kubwa mno. Tafadhali chagua picha chini ya 5MB.'
+      : saveError
+      ? 'Imeshindwa kuhifadhi. Tafadhali jaribu tena.'
+      : null)
 
   const deleteMutation = useMutation({
     mutationFn: productsApi.remove,
@@ -563,6 +582,7 @@ export default function Products() {
           onClose={() => setEditTarget(null)}
           onSave={handleSave}
           isSaving={isSaving}
+          errorMessage={saveErrorMessage}
         />
       )}
 

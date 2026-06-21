@@ -96,7 +96,7 @@ export default function Login() {
             </div>
 
             {serverError && (
-              <div className="rounded-lg bg-red-950/50 border border-red-800 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg  border border-red-800 px-3 py-2 text-sm text-red-400">
                 {serverError}
               </div>
             )}

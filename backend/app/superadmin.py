@@ -573,6 +573,19 @@ async def approve_payment_request(
             ),
             is_read=False,
         ))
+        
+        # Record revenue for this subscription payment
+        wallet = await db.scalar(select(Wallet).where(Wallet.tenant_id == req.tenant_id))
+        if wallet:
+            db.add(Transaction(
+                tenant_id=req.tenant_id,
+                wallet_id=wallet.id,
+                coin_amount=0,
+                tx_type="credit",
+                amount_tzs=plan["amount_tzs"],
+                package_id=req.package_id,
+                note=f"Subscription activated: {plan['label']} ({plan['messages_included']:,} messages/month). Ref: {req.mpesa_ref}",
+            ))
 
     else:
         # Regular coin top-up
