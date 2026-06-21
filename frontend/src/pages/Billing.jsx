@@ -423,16 +423,17 @@ export default function Billing() {
       {paymentRequests.length > 0 && (
         <div>
           <h2 className="text-base font-semibold text-white mb-4">Payment Requests</h2>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden max-h-50 overflow-y-auto">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl">
+            <div className="max-h-80 overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="bg-gray-900">
                 <tr className="border-b border-gray-800 text-xs text-gray-400 uppercase tracking-wider">
-                  <th className="text-left px-4 py-3 sticky top-0">Date</th>
-                  <th className="text-left px-4 py-3 sticky top-0">Package</th>
-                  <th className="text-right px-4 py-3 sticky top-0">Amount</th>
-                  <th className="text-right px-4 py-3 sticky top-0">Coins</th>
-                  <th className="text-left px-4 py-3 sticky top-0">Ref</th>
-                  <th className="text-left px-4 py-3 sticky top-0">Status</th>
+                  <th className="text-left px-4 py-3 sticky top-0 bg-gray-900">Date</th>
+                  <th className="text-left px-4 py-3 sticky top-0 bg-gray-900">Package</th>
+                  <th className="text-right px-4 py-3 sticky top-0 bg-gray-900">Amount</th>
+                  <th className="text-right px-4 py-3 sticky top-0 bg-gray-900">Coins</th>
+                  <th className="text-left px-4 py-3 sticky top-0 bg-gray-900">Ref</th>
+                  <th className="text-left px-4 py-3 sticky top-0 bg-gray-900">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -457,6 +458,7 @@ export default function Billing() {
             </table>
           </div>
         </div>
+        </div>
       )}
 
       {/* Transaction history */}
@@ -468,14 +470,15 @@ export default function Billing() {
             <p className="text-gray-400 text-sm">No transactions yet.</p>
           </div>
         ) : (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden max-h-50 overflow-y-auto">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl">
+            <div className="max-h-80 overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="bg-gray-900">
                 <tr className="border-b border-gray-800 text-xs text-gray-400 uppercase tracking-wider">
-                  <th className="text-left px-4 py-3 sticky top-0">Date</th>
-                  <th className="text-left px-4 py-3 sticky top-0">Type</th>
-                  <th className="text-left px-4 py-3 sticky top-0">Note</th>
-                  <th className="text-right px-4 py-3 sticky top-0">Coins</th>
+                  <th className="text-left px-4 py-3 sticky top-0 bg-gray-900">Date</th>
+                  <th className="text-left px-4 py-3 sticky top-0 bg-gray-900">Type</th>
+                  <th className="text-left px-4 py-3 sticky top-0 bg-gray-900">Note</th>
+                  <th className="text-right px-4 py-3 sticky top-0 bg-gray-900">Coins</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -499,6 +502,7 @@ export default function Billing() {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         )}
       </div>

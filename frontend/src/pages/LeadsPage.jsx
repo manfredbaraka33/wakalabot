@@ -181,31 +181,31 @@ export default function LeadsPage({ onSelectConversation }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight">Lead Dashboard</h1>
           <p className="text-sm text-gray-400 mt-0.5">Track purchase intent and customer details across all active chat sessions.</p>
         </div>
-        <div className="flex gap-4">
-          <div className="bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-3">
-            <Flame className="w-5 h-5 text-red-400" />
-            <div>
-              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Hot Deals</p>
-              <p className="text-lg font-semibold text-white leading-none mt-0.5">{hotCount}</p>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3 min-w-0">
+            <Flame className="w-5 h-5 text-red-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-wider truncate">Hot</p>
+              <p className="text-base sm:text-lg font-semibold text-white leading-none mt-0.5">{hotCount}</p>
             </div>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-3">
-            <Clock className="w-5 h-5 text-yellow-400" />
-            <div>
-              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Follow Ups</p>
-              <p className="text-lg font-semibold text-white leading-none mt-0.5">{pendingCount}</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3 min-w-0">
+            <Clock className="w-5 h-5 text-yellow-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-wider truncate">Pending</p>
+              <p className="text-base sm:text-lg font-semibold text-white leading-none mt-0.5">{pendingCount}</p>
             </div>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-emerald-400" />
-            <div>
-              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Resolved</p>
-              <p className="text-lg font-semibold text-white leading-none mt-0.5">{resolvedCount}</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3 min-w-0">
+            <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-wider truncate">Resolved</p>
+              <p className="text-base sm:text-lg font-semibold text-white leading-none mt-0.5">{resolvedCount}</p>
             </div>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function LeadsPage({ onSelectConversation }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+            <table className="w-full text-left text-sm border-collapse min-w-[640px]">
               <thead>
                 <tr className="border-b border-gray-800 bg-gray-900/50 text-gray-400 font-medium text-xs uppercase tracking-wider">
                   <th className="px-6 py-3.5">Customer</th>

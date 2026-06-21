@@ -118,7 +118,8 @@ function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-10 z-40 w-80 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 z-40 flex items-start justify-center pt-20 px-4 sm:absolute sm:inset-auto sm:right-0 sm:top-10 sm:pt-0 sm:px-0 sm:flex-none sm:block pointer-events-none">
+            <div className="w-full max-w-sm sm:w-80 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
               <p className="text-sm font-semibold text-white">Notifications</p>
               {count > 0 && (
@@ -150,6 +151,7 @@ function NotificationBell() {
                 ))
               )}
             </div>
+          </div>
           </div>
         </>
       )}
