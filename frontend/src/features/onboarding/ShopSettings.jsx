@@ -3,9 +3,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Save, Loader2, Clock, MapPin, Phone, Link2, QrCode,
-  Copy, Check, Zap, Brain, X, Code, Globe, Truck, FileText,
+  Copy, Check, Zap, Brain, X, Code, Globe, Truck, FileText, Lock,
 } from 'lucide-react'
-import { useState, useRef,useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import apiClient from '../../api/axios'
@@ -72,6 +72,10 @@ function CoinMathModal({ onClose }) {
               </div>
             </div>
           </div>
+          <p className="text-xs text-gray-500 border-t border-gray-800 pt-3">
+            Note: if you have an active monthly subscription, your AI model is fixed by your plan
+            and coin deduction does not apply until your monthly message allowance is used up.
+          </p>
         </div>
       </div>
     </div>
@@ -82,7 +86,6 @@ export default function ShopSettings() {
   const [saveStatus, setSaveStatus] = useState('idle')
   const [copied, setCopied] = useState(false)
   const [copiedWidget, setCopiedWidget] = useState(false)
-  // const [aiMode, setAiMode] = useState('eco')
   const [aiModeSaving, setAiModeSaving] = useState(false)
   const [aiModeSaved, setAiModeSaved] = useState(false)
   const [showCoinModal, setShowCoinModal] = useState(false)
@@ -105,8 +108,18 @@ export default function ShopSettings() {
     }
   })
 
+  const { data: subscription } = useQuery({
+    queryKey: ['subscription'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/billing/subscription')
+      return res.data
+    },
+  })
 
-  const activeAiMode = tenantData?.user?.ai_mode || 'eco'
+  const hasSubscription = !!subscription?.has_subscription
+  const activeAiMode = hasSubscription
+    ? (subscription.plan_id === 'pro' ? 'smart' : 'eco')
+    : (tenantData?.user?.ai_mode || 'eco')
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -134,44 +147,33 @@ export default function ShopSettings() {
     }
   }
 
-
   async function saveAiMode(mode) {
-  setAiModeSaving(true);
-  
-  // 1. Snapshot for rollback
-  const previousData = queryClient.getQueryData(['tenant-info']);
+    if (hasSubscription) return // locked — plan dictates model, never client-toggleable
 
-  // 2. Optimistic Update
-  queryClient.setQueryData(['tenant-info'], (oldData) => {
-    if (!oldData) return { user: { ai_mode: mode } };
-    return { ...oldData, user: { ...oldData.user, ai_mode: mode } };
-  });
+    setAiModeSaving(true)
+    const previousData = queryClient.getQueryData(['tenant-info'])
 
-  try {
-    // 3. Perform the actual API call
-    await apiClient.patch('/api/v1/auth/ai-mode', { ai_mode: mode });
-
-    // 4. CRITICAL: Manually update the cache to the "official" new state
-    // This prevents the UI from flickering back to the old value
     queryClient.setQueryData(['tenant-info'], (oldData) => {
-      return { ...oldData, user: { ...oldData.user, ai_mode: mode } };
-    });
+      if (!oldData) return { user: { ai_mode: mode } }
+      return { ...oldData, user: { ...oldData.user, ai_mode: mode } }
+    })
 
-    setAiModeSaved(true);
-    setTimeout(() => setAiModeSaved(false), 3000);
-  } catch (error) {
-    // 5. Rollback on failure
-    if (previousData) {
-      queryClient.setQueryData(['tenant-info'], previousData);
+    try {
+      await apiClient.patch('/api/v1/auth/ai-mode', { ai_mode: mode })
+      queryClient.setQueryData(['tenant-info'], (oldData) => {
+        return { ...oldData, user: { ...oldData.user, ai_mode: mode } }
+      })
+      setAiModeSaved(true)
+      setTimeout(() => setAiModeSaved(false), 3000)
+    } catch (error) {
+      if (previousData) {
+        queryClient.setQueryData(['tenant-info'], previousData)
+      }
+      alert('Failed to update AI model. Please try again.')
+    } finally {
+      setAiModeSaving(false)
     }
-    alert('Failed to update AI model. Please try again.');
-  } finally {
-    setAiModeSaving(false);
-    // Remove invalidateQueries here to stop the "flicker"
   }
-}
-
-
 
   const slug = tenantData?.user?.slug ?? null
   const baseUrl = window.location.origin
@@ -326,19 +328,39 @@ export default function ShopSettings() {
           </div>
           <div className="flex-1">
             <h2 className="text-base font-semibold text-white">Select Your AI Model</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Choose how smart and how expensive your assistant is.{' '}
-              <button type="button" onClick={() => setShowCoinModal(true)} className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
-                Learn how this is calculated
-              </button>
-            </p>
+            {hasSubscription ? (
+              <p className="text-xs text-gray-400 mt-0.5">
+                Una mpango wa <span className="text-indigo-400 font-medium capitalize">{subscription.plan_id}</span> —
+                mfumo wa AI umewekwa kiotomatiki kulingana na mpango wako. Chaguo hapa chini halitatumika ukiwa na mpango.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400 mt-0.5">
+                Choose how smart and how expensive your assistant is.{' '}
+                <button type="button" onClick={() => setShowCoinModal(true)} className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+                  Learn how this is calculated
+                </button>
+              </p>
+            )}
           </div>
         </div>
+
+        {hasSubscription && (
+          <div className="flex items-center gap-2 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2">
+            <Lock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <p className="text-xs text-indigo-300">
+              Locked by your {subscription.plan_id} subscription
+            </p>
+          </div>
+        )}
+
         <div className="space-y-3">
           <button
             type="button"
+            disabled={hasSubscription}
             onClick={() => saveAiMode('eco')}
             className={`w-full flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
+              hasSubscription ? 'opacity-40 cursor-not-allowed' : ''
+            } ${
               activeAiMode === 'eco' ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
             }`}
           >
@@ -348,13 +370,16 @@ export default function ShopSettings() {
             <Zap className={`w-5 h-5 shrink-0 ${activeAiMode === 'eco' ? 'text-yellow-400' : 'text-gray-500'}`} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">⚡ Eco Mode</p>
-              <p className="text-xs text-gray-400 mt-0.5">Approx. 1 coin per average message</p>
+              <p className="text-xs text-gray-400 mt-0.5">Costs less coins</p>
             </div>
           </button>
           <button
             type="button"
+            disabled={hasSubscription}
             onClick={() => saveAiMode('smart')}
             className={`w-full flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
+              hasSubscription ? 'opacity-40 cursor-not-allowed' : ''
+            } ${
               activeAiMode === 'smart' ? 'border-indigo-500/50 bg-indigo-500/5' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
             }`}
           >
@@ -364,7 +389,7 @@ export default function ShopSettings() {
             <Brain className={`w-5 h-5 shrink-0 ${activeAiMode === 'smart' ? 'text-indigo-400' : 'text-gray-500'}`} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">🧠 Smart Mode</p>
-              <p className="text-xs text-gray-400 mt-0.5">Approx. 3 coins per average message</p>
+              <p className="text-xs text-gray-400 mt-0.5">Costs more coins, but smarter</p>
             </div>
           </button>
         </div>

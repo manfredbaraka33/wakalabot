@@ -98,6 +98,29 @@ async def _get_tenant_by_slug(slug: str, db: AsyncSession) -> Tenant:
     return tenant
 
 
+async def _resolve_ai_mode(tenant: Tenant, db: AsyncSession) -> str:
+    """If an active subscription exists, the plan locks the model tier — this
+    prevents a subscriber from manually switching to 'smart' and getting
+    expensive-model usage for free under their subscription's flat message count.
+    No active subscription → fall back to the tenant's manual eco/smart choice."""
+    from app.schemas import SUBSCRIPTION_PLANS
+
+    now = datetime.now(timezone.utc)
+    sub_result = await db.execute(
+        select(Subscription).where(
+            Subscription.tenant_id == tenant.id,
+            Subscription.status == "active",
+            Subscription.expires_at > now,
+        )
+    )
+    sub = sub_result.scalar_one_or_none()
+    if sub:
+        plan = next((p for p in SUBSCRIPTION_PLANS if p["id"] == sub.plan_id), None)
+        if plan:
+            return plan.get("ai_mode", "eco")
+    return tenant.ai_mode
+
+
 async def _check_wallet(tenant_id: uuid.UUID, db: AsyncSession) -> None:
     # Check active subscription first — has allowance remaining?
     now = datetime.now(timezone.utc)
@@ -179,6 +202,7 @@ async def chat_message(
         raise HTTPException(status_code=401, detail="Invalid customer token")
 
     try:
+        effective_ai_mode = await _resolve_ai_mode(tenant, db)
         reply, tools_used, new_msg = await ai_engine.get_answer(
             db=db,
             user_input=body.message,
@@ -186,7 +210,7 @@ async def chat_message(
             customer_phone=resolved_phone,
             customer_name=resolved_name,
             biz_name=tenant.biz_name,
-            ai_mode=tenant.ai_mode,
+            ai_mode=effective_ai_mode,
         )
 
     except APITimeoutError:

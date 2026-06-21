@@ -108,7 +108,7 @@ class Transaction(Base):
     coin_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     # 'credit' = admin top-up | 'deduction' = AI usage
     tx_type: Mapped[str] = mapped_column(
-        Enum("credit", "deduction", name="transaction_type"),
+        Enum("credit", "deduction","subscription_usage", name="transaction_type"),
         nullable=False,
         default="credit",
     )
