@@ -101,3 +101,7 @@ app.include_router(customer_auth_router, prefix="/api/v1")
 @app.get("/", response_model=dict)
 async def root():
     return {"message": "Wakalabot API is running!"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
