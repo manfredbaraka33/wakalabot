@@ -280,7 +280,7 @@ export default function LandingPage() {
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight text-white">
-            Automate your sales chat{' '}
+            Automate your sales chats{' '}
             <span className="text-indigo-400">without limits</span>
           </h1>
 
