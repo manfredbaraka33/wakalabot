@@ -36,24 +36,34 @@ export default function UnansweredQuestions() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-start justify-between">
+      {/* 1. Exactly mirrors the outer structural layout of your working snippet */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <HelpCircle className="w-6 h-6 text-yellow-400" />
+          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-yellow-400 shrink-0" />
             Maswali Bila Majibu
           </h1>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-gray-400 mt-0.5">
             Maswali ambayo bot haikuweza kujibu. Ongeza taarifa hizo kwenye mfumo wako.
           </p>
         </div>
-        <div className="flex gap-3">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-center">
-            <p className="text-yellow-400 text-xl font-bold">{pending.length}</p>
-            <p className="text-gray-500 text-xs">Yanayosubiri</p>
+
+        {/* 2. Mimics the exact responsive grid layout, dimensions, backgrounds, and item tracking */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:w-auto">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3 min-w-0">
+            <Clock className="w-5 h-5 text-yellow-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-wider truncate">Yanayosubiri</p>
+              <p className="text-base sm:text-lg font-semibold text-white leading-none mt-0.5">{pending.length}</p>
+            </div>
           </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-center">
-            <p className="text-emerald-400 text-xl font-bold">{resolved.length}</p>
-            <p className="text-gray-500 text-xs">Yaliyotatuliwa</p>
+
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3 min-w-0">
+            <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-wider truncate">Yaliyotatuliwa</p>
+              <p className="text-base sm:text-lg font-semibold text-white leading-none mt-0.5">{resolved.length}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -67,7 +77,8 @@ export default function UnansweredQuestions() {
         </div>
       )}
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      {/* 3. Wrap table in an overflow container so it stays safe on tiny mobile devices */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-500">Inapakia...</div>
         ) : questions.length === 0 ? (
@@ -77,7 +88,7 @@ export default function UnansweredQuestions() {
             <p className="text-gray-500 text-sm">Bot imejibu maswali yote. Hakuna pengo la maudhui.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-800">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Swali</th>
