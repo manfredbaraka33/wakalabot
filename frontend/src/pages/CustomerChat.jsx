@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import {
   BotMessageSquare, Send, Search, ArrowLeft, Sun, Moon,
   ChevronLeft, ChevronRight, BadgeCheck, Loader2, LogOut, X,
-  Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot,ChevronDown
+  Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot,ChevronDown,Maximize
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL
@@ -566,6 +566,7 @@ export default function CustomerChat() {
   const [bizError, setBizError] = useState(null)
   const bottomRef = useRef(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
+  const [fullImage, setFullImage] = useState(null);
 
   // ── Load directory ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -941,10 +942,18 @@ export default function CustomerChat() {
                         />
                         <button
                           onClick={() => downloadImage(msg.image_url)}
-                          className="absolute top-2 right-2 p-1.5 rounded-lg  bg-gray-400 text-black hover:bg-indigo-300"
+                          className="absolute top-2 right-2 p-1.5 rounded-lg  bg-green-950 text-black hover:bg-indigo-300"
                           title="Download image"
                         >
-                          <Download className="w-3.5 h-3" />
+                          <Download className="w-3.5 h-3 text-green-100" />
+                        </button>
+                        {/* New Expand Button */}
+                        <button
+                          onClick={() => setFullImage(msg.image_url)}
+                          className="absolute top-2 right-10 p-1.5 rounded-lg bg-green-950 text-black hover:bg-indigo-300"
+                          title="View full size"
+                        >
+                          <Maximize className="w-3.5 h-3 text-green-100" />
                         </button>
                       </div>
                     )}
@@ -1008,6 +1017,26 @@ export default function CustomerChat() {
           </>
         )}
       </div>
+        
+        {fullImage && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+              onClick={() => setFullImage(null)}
+            >
+              <img 
+                src={fullImage} 
+                alt="Full view" 
+                className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+              />
+              <button 
+                className="absolute top-4 right-4 text-white hover:text-gray-300"
+                onClick={() => setFullImage(null)}
+              >
+                Close
+              </button>
+            </div>
+          )}
+
     </div>
   )
 }
