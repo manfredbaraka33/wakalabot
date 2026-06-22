@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import {
   BotMessageSquare, Send, Search, ArrowLeft, Sun, Moon,
   ChevronLeft, ChevronRight, BadgeCheck, Loader2, LogOut, X,
-  Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot
+  Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot,ChevronDown
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL
@@ -565,6 +565,7 @@ export default function CustomerChat() {
   const [loading, setLoading] = useState(false)
   const [bizError, setBizError] = useState(null)
   const bottomRef = useRef(null)
+  const [showScrollDown, setShowScrollDown] = useState(false)
 
   // ── Load directory ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -591,10 +592,24 @@ export default function CustomerChat() {
       .catch(() => setBizError('Business not found.'))
   }, [slug])
 
-  // ── Auto-scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
+    if (bottomRef.current && !showScrollDown) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages?.length])
+
+  // 2. Detect when the user scrolls up
+  function handleScroll(e) {
+    const { scrollTop, scrollHeight, clientHeight } = e.target
+    // Show button if we are more than 150px away from the bottom
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 150
+    setShowScrollDown(isScrolledUp)
+  }
+
+  // 3. Scroll to bottom when button is clicked
+  function scrollToBottom() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }
 
   // ── Load chat history for current customer + business ──────────────────
   async function loadHistory(bizSlug, biz) {
@@ -835,7 +850,8 @@ export default function CustomerChat() {
       {/* ── Right panel ── */}
       <div
         style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        className={showAuthModal ? 'filter blur-sm pointer-events-none' : ''}
+        // className={showAuthModal ? 'filter blur-sm pointer-events-none' : ''}
+        className={`relative ${showAuthModal ? 'filter blur-sm pointer-events-none' : ''}`}
       >
         {!activeBiz ? (
           <div className="flex-1 flex items-center justify-center text-center px-6">
@@ -889,7 +905,7 @@ export default function CustomerChat() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" onScroll={handleScroll}>
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`group relative max-w-xs lg:max-w-md flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
@@ -925,7 +941,7 @@ export default function CustomerChat() {
                         />
                         <button
                           onClick={() => downloadImage(msg.image_url)}
-                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/30 text-white hover:bg-amber-200"
+                          className="absolute top-2 right-2 p-1.5 rounded-lg  bg-gray-400 text-black hover:bg-indigo-300"
                           title="Download image"
                         >
                           <Download className="w-3.5 h-3" />
@@ -950,6 +966,15 @@ export default function CustomerChat() {
               )}
               <div ref={bottomRef} />
             </div>
+              
+              {showScrollDown && (
+              <button
+                onClick={scrollToBottom}
+                className="absolute bottom-28 right-6 p-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white rounded-full shadow-2xl transition-all flex items-center justify-center z-10"
+              >
+                <ChevronDown className="w-5 h-5 text-indigo-400" />
+              </button>
+            )}
 
             {/* Input */}
             <form onSubmit={sendMessage} style={{ flexShrink: 0 }} className="p-4 border-t border-gray-800 bg-gray-900">

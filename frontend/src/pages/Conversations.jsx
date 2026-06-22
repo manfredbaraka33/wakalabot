@@ -1,6 +1,6 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MessageSquare, Phone, RefreshCw, User, Bot, ChevronLeft, ChevronRight, Flame, ThumbsDown, Clock } from 'lucide-react'
+import { MessageSquare, Phone, RefreshCw, User, Bot, ChevronLeft, ChevronRight, Flame, ThumbsDown, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { getConversations, getConversation } from '../api/conversations'
 import apiClient from '../api/axios'
 
@@ -209,7 +209,11 @@ export default function Conversations() {
   const [selectedId, setSelectedId] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showLeads, setShowLeads] = useState(false)
+  const [showScrollDown, setShowScrollDown] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false) // Added top scroll state
+  
   const bottomRef = useRef(null)
+  const topRef = useRef(null) // Added top reference
 
   const {
     data: conversations = [],
@@ -234,10 +238,27 @@ export default function Conversations() {
   })
 
   useEffect(() => {
-    if (bottomRef.current) {
+    if (bottomRef.current && !showScrollDown) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [active?.messages?.length])
+
+  function handleScroll(e) {
+    const { scrollTop, scrollHeight, clientHeight } = e.target
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 150
+    const isScrolledDown = scrollTop > 150 // Detect if we've scrolled down from the top
+    
+    setShowScrollDown(isScrolledUp)
+    setShowScrollTop(isScrolledDown)
+  }
+
+  function scrollToBottom() {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  function scrollToTop() {
+    topRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   function handleRefresh() {
     refetchList()
@@ -299,7 +320,7 @@ export default function Conversations() {
       </aside>
 
       {/* ── Right pane ── */}
-      <main className="flex-1 flex flex-col min-h-0 bg-gray-900 overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 bg-gray-900 overflow-hidden relative">
         {selectedId && active ? (
           <>
             {/* Chat header */}
@@ -330,7 +351,9 @@ export default function Conversations() {
                 <LeadsPanel convId={selectedId} />
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1">
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1" onScroll={handleScroll}>
+                <div ref={topRef} /> {/* Invisible div to act as our top target */}
+                
                 {chatLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <span className="text-sm text-gray-500">Loading messages…</span>
@@ -342,15 +365,41 @@ export default function Conversations() {
                 ) : (
                   active.messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
                 )}
-                <div ref={bottomRef} />
+                
+                <div ref={bottomRef} /> {/* Invisible div to act as our bottom target */}
+              </div>
+            )}
+            
+            {/* Floating Scroll Navigation Buttons */}
+            {!showLeads && (showScrollTop || showScrollDown) && (
+              <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
+                {showScrollTop && (
+                  <button
+                    onClick={scrollToTop}
+                    title="Scroll to Top"
+                    className="p-3 bg-transparent hover:bg-gray-700 border border-gray-700 text-black rounded-full shadow-2xl transition-all flex items-center justify-center"
+                  >
+                    <ChevronUp className="w-4 h-4 text-black font-bold" />
+                  </button>
+                )}
+                
+                {showScrollDown && (
+                  <button
+                    onClick={scrollToBottom}
+                    title="Scroll to Bottom"
+                    className="p-3 bg-transparent hover:bg-gray-700 border border-gray-700 text-black rounded-full shadow-2xl transition-all flex items-center justify-center"
+                  >
+                    <ChevronDown className="w-4 h-4 text-black font-bold" />
+                  </button>
+                )}
               </div>
             )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-600 relative">
             {!sidebarOpen && (
-              <button onClick={() => setSidebarOpen(true)} className="absolute top-3 left-3 p-1.5 rounded-lg hover:bg-gray-800 transition-colors">
-                <ChevronRight className="w-4 h-4 text-gray-400" />
+              <button onClick={() => setSidebarOpen(true)} className="absolute top-3 left-3 p-1 rounded-lg hover:bg-gray-800 transition-colors">
+                <ChevronRight className="w-3 h-3 text-gray-400" />
               </button>
             )}
             <MessageSquare className="w-12 h-12" />
