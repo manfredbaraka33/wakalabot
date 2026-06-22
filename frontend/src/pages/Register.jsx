@@ -3,14 +3,19 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { Loader2, BotMessageSquare, Eye, EyeOff } from 'lucide-react'
+import { Loader2, BotMessageSquare, Eye, EyeOff, AtSign } from 'lucide-react'
 import useTenantStore from '../store/useTenantStore'
 import apiClient from '../api/axios'
 
 const schema = z
   .object({
+    username: z
+      .string()
+      .min(3, 'Username must be at least 3 characters')
+      .max(50, 'Username too long')
+      .regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and underscore (_) allowed'),
     businessName: z.string().min(2, 'Business name must be at least 2 characters'),
-    email: z.string().email('Enter a valid email address'),
+    phone: z.string().optional().or(z.literal('')),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
   })
@@ -19,11 +24,12 @@ const schema = z
     path: ['confirmPassword'],
   })
 
-function InputField({ label, error, children }) {
+function InputField({ label, error, hint, children }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-300 mb-1">{label}</label>
       {children}
+      {hint && !error && <p className="mt-1 text-xs text-gray-600">{hint}</p>}
       {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
     </div>
   )
@@ -49,8 +55,9 @@ export default function Register() {
     setServerError('')
     try {
       const res = await apiClient.post('/api/v1/auth/register', {
+        username: data.username.toLowerCase(),
         business_name: data.businessName,
-        email: data.email,
+        phone: data.phone?.trim() || undefined,
         password: data.password,
       })
       setAuthResult(res.data)
@@ -63,7 +70,6 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
@@ -74,14 +80,27 @@ export default function Register() {
           <p className="text-sm text-gray-400">Smart business management platform</p>
         </div>
 
-        {/* Card */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
           <h1 className="text-xl font-semibold text-white mb-1">Create your account</h1>
-          <p className="text-sm text-gray-400 mb-6">
-            Get started in minutes. Manage your business smarter.
-          </p>
+          <p className="text-sm text-gray-400 mb-6">Get started in minutes. Manage your business smarter.</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <InputField
+              label="Username"
+              error={errors.username?.message}
+              hint="Letters, numbers and underscore only. e.g. juma_store"
+            >
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  {...register('username')}
+                  placeholder="juma_store"
+                  className={inputCls + ' pl-9'}
+                  autoComplete="username"
+                />
+              </div>
+            </InputField>
+
             <InputField label="Business Name" error={errors.businessName?.message}>
               <input
                 {...register('businessName')}
@@ -90,11 +109,15 @@ export default function Register() {
               />
             </InputField>
 
-            <InputField label="Email" error={errors.email?.message}>
+            <InputField
+              label="Phone Number"
+              error={errors.phone?.message}
+              hint="Optional — for contact purposes"
+            >
               <input
-                {...register('email')}
-                type="email"
-                placeholder="hello@mybusiness.com"
+                {...register('phone')}
+                type="tel"
+                placeholder="+255 712 345 678 (optional)"
                 className={inputCls}
               />
             </InputField>
@@ -106,6 +129,7 @@ export default function Register() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Min. 8 characters"
                   className={inputCls}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -125,6 +149,7 @@ export default function Register() {
                   type={showConfirm ? 'text' : 'password'}
                   placeholder="Repeat password"
                   className={inputCls}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -138,7 +163,7 @@ export default function Register() {
             </InputField>
 
             {serverError && (
-              <div className="rounded-lg bg-red-950/50 border border-red-800 px-3 py-2 text-sm text-red-400">
+              <div className="rounded-lg  border-red-800 px-3 py-2 text-sm text-red-400">
                 {serverError}
               </div>
             )}

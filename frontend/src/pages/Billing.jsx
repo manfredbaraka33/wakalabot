@@ -354,12 +354,7 @@ export default function Billing() {
                 </p>
               )}
             </div>
-            <button
-              onClick={() => setShowSubscribe(true)}
-              className="w-full py-2 rounded-lg border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 text-sm font-medium transition-colors"
-            >
-              Badilisha Mpango
-            </button>
+            
           </div>
         ) : (
           /* No subscription — show plans */

@@ -10,7 +10,7 @@ export function changePassword(currentPassword, newPassword) {
 
 
 export const getMe = async () => {
-  const response = await apiClient.get('/api/v1/auth/me'); // Adjust path if needed
+  const response = await apiClient.get('/api/v1/auth/me'); 
   return response.data;
 };
 

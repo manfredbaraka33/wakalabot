@@ -60,6 +60,12 @@ export const updateTicket = (id, data) =>
 export const toggleVerify = (id) =>
   saClient().patch(`/superadmin/tenants/${id}/verify`)
 
+export const getTenantSubscription = (id) =>
+  saClient().get(`/superadmin/tenants/${id}/subscription`)
+
+export const setTenantPlan = (id, plan_id) =>
+  saClient().post(`/superadmin/tenants/${id}/set-plan`, { plan_id })
+
 export const getPaymentRequests = (params) =>
   saClient().get('/superadmin/payment-requests', { params })
 

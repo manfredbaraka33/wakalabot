@@ -5,35 +5,34 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
+    username: str = Field(
+        ..., min_length=3, max_length=100,
+        pattern=r'^[a-zA-Z0-9_]+$',
+    )
     business_name: str = Field(..., min_length=2, max_length=255)
-    email: str = Field(..., min_length=5, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=20)
     password: str = Field(..., min_length=8)
-
-    @field_validator("email")
-    @classmethod
-    def normalise_email(cls, v: str) -> str:
-        v = v.strip().lower()
-        if "@" not in v or v.count("@") != 1:
-            raise ValueError("Invalid email address")
-        return v
 
 
 class LoginRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
-    @field_validator("email")
+    @field_validator("username")
     @classmethod
-    def normalise_email(cls, v: str) -> str:
+    def normalise_username(cls, v: str) -> str:
         return v.strip().lower()
 
 
+
 class UserInfo(BaseModel):
-    email: str
+    username: str
+    email: Optional[str] = None
     business_name: str
+    phone: Optional[str] = None
     slug: Optional[str] = None
     is_verified: bool = False
-    ai_mode: str="eco"
+    ai_mode: str = "eco"
 
 
 class ChangePasswordRequest(BaseModel):

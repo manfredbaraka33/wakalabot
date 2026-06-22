@@ -551,6 +551,7 @@ async def approve_payment_request(
         old_sub = existing_sub.scalar_one_or_none()
         if old_sub:
             old_sub.status = "cancelled"
+            await db.flush()
 
         # Create new subscription
         db.add(Subscription(
@@ -802,3 +803,85 @@ async def list_feedback(
             for fb, msg, conv, tenant in rows
         ],
     }
+
+
+from app.schemas import SUBSCRIPTION_PLANS
+
+
+class SetPlanRequest(BaseModel):
+    plan_id: str  # 'starter' | 'business' | 'pro' | 'none'
+
+
+@router.get("/tenants/{tenant_id}/subscription", dependencies=[Depends(get_superadmin)])
+async def get_tenant_subscription(
+    tenant_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    from app.models import Subscription
+    result = await db.execute(
+        select(Subscription).where(
+            Subscription.tenant_id == tenant_id,
+            Subscription.status == "active",
+        )
+    )
+    sub = result.scalar_one_or_none()
+    if not sub:
+        return {"has_subscription": False}
+    return {
+        "has_subscription": True,
+        "plan_id": sub.plan_id,
+        "messages_used": sub.messages_used,
+        "messages_included": sub.messages_included,
+        "expires_at": sub.expires_at.isoformat(),
+    }
+
+
+@router.post("/tenants/{tenant_id}/set-plan", dependencies=[Depends(get_superadmin)])
+async def set_tenant_plan(
+    tenant_id: uuid.UUID,
+    payload: SetPlanRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    from app.models import Subscription
+    from datetime import datetime, timedelta, timezone
+
+    # Cancel existing subscription if any
+    existing = await db.execute(
+        select(Subscription).where(
+            Subscription.tenant_id == tenant_id,
+            Subscription.status == "active",
+        )
+    )
+    old_sub = existing.scalar_one_or_none()
+    if old_sub:
+        await db.delete(old_sub)
+        await db.commit()  
+
+    if payload.plan_id == "none":
+        await db.commit()
+        return {"status": "subscription_removed"}
+
+    plan = next((p for p in SUBSCRIPTION_PLANS if p["id"] == payload.plan_id), None)
+    if not plan:
+        raise HTTPException(status_code=400, detail="Invalid plan_id")
+
+    now = datetime.now(timezone.utc)
+    db.add(Subscription(
+        tenant_id=tenant_id,
+        plan_id=payload.plan_id,
+        messages_included=plan["messages_included"],
+        messages_used=0,
+        status="active",
+        started_at=now,
+        expires_at=now + timedelta(days=30),
+    ))
+
+    db.add(Notification(
+        tenant_id=tenant_id,
+        type="new_message",
+        message=f"✅ Mpango wako umewekwa hadi {plan['label']} ({plan['messages_included']:,} mazungumzo/mwezi) na admin.",
+        is_read=False,
+    ))
+
+    await db.commit()
+    return {"status": "plan_set", "plan": plan["label"]}

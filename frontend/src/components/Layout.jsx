@@ -33,7 +33,6 @@ const NAV_ITEMS = [
   { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/dashboard/billing', label: 'Billing & Wallet', icon: Coins },
   { to: '/dashboard/support', label: 'Support', icon: Ticket },
-  { to: '/dashboard/account', label: 'Account', icon: KeyRound },
   { to: '/dashboard/leads', label: 'Leads', icon: FlameIcon },
   { to: '/dashboard/unanswered', label: 'Maswali Bila Majibu', icon: HelpCircle }
 ]
@@ -276,14 +275,16 @@ export default function Layout() {
           >
             <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
               <span className="text-sm font-semibold text-indigo-400 leading-none">
-                {user?.email?.[0]?.toUpperCase() ?? 'U'}
+                {(user?.username ?? user?.email ?? 'U')[0].toUpperCase()}
               </span>
             </div>
             <div className="hidden sm:block text-right">
               <p className="text-sm font-medium text-white leading-none">
                 {user?.business_name ?? 'My Business'}
               </p>
-              <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[180px]">{user?.email}</p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[180px]">
+                @{user?.username ?? user?.email ?? '—'}
+              </p>
             </div>
           </button>
         </header>

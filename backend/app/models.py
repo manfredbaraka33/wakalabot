@@ -20,12 +20,15 @@ class Tenant(Base):
     )
 
     # ── App Auth ───────────────────────────────────────────────────────────────
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
+    username: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False, index=True
+    )
+    email: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, index=True
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(
-        String(50), unique=True, nullable=True, index=True
+        String(50), nullable=True, index=True  # NOT unique — no phone verification needed
     )
 
     # ── Widget CORS ────────────────────────────────────────────────────────────
@@ -487,7 +490,7 @@ class Subscription(Base):
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False, unique=True, index=True,
+        nullable=False, index=True,
     )
     plan_id: Mapped[str] = mapped_column(String(50), nullable=False)
     messages_included: Mapped[int] = mapped_column(Integer, nullable=False)
