@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import {
   BotMessageSquare, Send, Search, ArrowLeft, Sun, Moon,
   ChevronLeft, ChevronRight, BadgeCheck, Loader2, LogOut, X,
-  Copy, Check, Download, ThumbsUp, ThumbsDown,
+  Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL
@@ -874,11 +874,17 @@ export default function CustomerChat() {
                 </p>
               </div>
               {authed && customer && (
-                <button onClick={() => setShowAccount(true)} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                <div className='flex gap-2'>
+                  <button onClick={toggle} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                  {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                </button>
+                  <button onClick={() => setShowAccount(true)} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
                   <div className="w-7 h-7 rounded-full bg-indigo-500/20 flex items-center justify-center">
                     <span className="text-indigo-400 text-xs font-bold">{customer.name?.charAt(0)}</span>
                   </div>
+                  
                 </button>
+                </div>
               )}
             </div>
 
@@ -887,10 +893,19 @@ export default function CustomerChat() {
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`group relative max-w-xs lg:max-w-md flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    {msg.role=='user' ? (
+                        <div className="shrink-0 w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center mb-1">
+                          <User className="w-4 h-4 text-gray-300" />
+                        </div>
+                      ):(
+                        <div className="shrink-0 w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center mb-1">
+                          <Bot className="w-4 h-4 text-gray-300" />
+                        </div>
+                      )}
                     {msg.content && (
                       <div className={`prose prose-invert prose-sm max-w-none px-4 py-2.5 rounded-2xl ${
                         msg.role === 'user'
-                          ? 'bg-indigo-600 text-white rounded-br-sm prose-p:text-white prose-strong:text-white'
+                          ? 'bg-indigo-700 text-yellow-100 rounded-br-sm '
                           : 'bg-gray-800 text-white rounded-bl-sm prose-p:text-white prose-strong:text-white'
                       }`}>
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -910,10 +925,10 @@ export default function CustomerChat() {
                         />
                         <button
                           onClick={() => downloadImage(msg.image_url)}
-                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/30 text-white hover:bg-amber-200"
                           title="Download image"
                         >
-                          <Download className="w-3.5 h-3.5" />
+                          <Download className="w-3.5 h-3" />
                         </button>
                       </div>
                     )}

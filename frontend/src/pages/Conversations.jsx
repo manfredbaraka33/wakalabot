@@ -288,7 +288,10 @@ export default function Conversations() {
                 key={conv.id}
                 conv={conv}
                 isActive={selectedId === conv.id}
-                onClick={() => setSelectedId(conv.id)}
+                onClick={() => {
+                  setSelectedId(conv.id)
+                  setSidebarOpen(false) 
+                }}
               />
             ))
           )}

@@ -194,7 +194,7 @@ export default function SuperAdminDashboard() {
 
         {/* AI Activity */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 xl:col-span-2">
-          <h2 className="text-sm font-semibold text-white mb-4">AI Activity — Coins Purchased by Day</h2>
+          <h2 className="text-sm font-semibold text-white mb-4">AI Activity — Coins Spent by Day</h2>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={activityChart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
               <defs>
@@ -209,7 +209,7 @@ export default function SuperAdminDashboard() {
               <Tooltip contentStyle={customTooltipStyle} formatter={(v) => [v.toLocaleString(), 'Coins']} />
               <Legend
                 wrapperStyle={{ color: '#9ca3af', fontSize: '12px' }}
-                formatter={() => 'Coins Purchased'}
+                formatter={() => 'Coins Spent'}
               />
               <Line
                 type="monotone"

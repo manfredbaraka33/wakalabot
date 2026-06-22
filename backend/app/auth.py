@@ -222,3 +222,51 @@ async def update_ai_mode(
         raise HTTPException(status_code=400, detail="Invalid mode")
     tenant.ai_mode = payload.ai_mode
     await db.commit()
+
+
+
+
+
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+
+# 1. Add the new schema for the profile update
+class TenantProfileUpdate(BaseModel):
+    biz_name: Optional[str] = Field(default=None, min_length=2, max_length=255)
+    email: Optional[str] = Field(default=None)
+    phone: Optional[str] = Field(default=None)
+
+# 2. Add ONLY the profile patch endpoint. 
+# (Your existing /change-password endpoint stays exactly as it is!)
+@router.patch("/me/profile")
+@limiter.limit("5/minute")
+async def update_profile(
+    request: Request,
+    payload: TenantProfileUpdate,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if payload.biz_name:
+        tenant.biz_name = payload.biz_name.strip()
+    
+    if payload.email:
+        email = payload.email.strip().lower()
+        existing = await db.execute(
+            select(Tenant).where(
+                Tenant.email == email,
+                Tenant.id != tenant.id,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Email already in use.")
+        tenant.email = email
+        
+    if payload.phone is not None:
+        tenant.phone = payload.phone.strip() or None
+        
+    await db.commit()
+    return {
+        "biz_name": tenant.biz_name,
+        "email": tenant.email,
+        "phone": tenant.phone,
+    }

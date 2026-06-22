@@ -268,8 +268,12 @@ export default function Layout() {
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          {/* User badge */}
-          <div className="flex items-center gap-3">
+          
+          {/* User badge — clickable, goes to account page */}
+          <button
+            onClick={() => navigate('/dashboard/account')}
+            className="flex items-center gap-3 rounded-xl px-2 py-1 hover:bg-gray-800 transition-colors"
+          >
             <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
               <span className="text-sm font-semibold text-indigo-400 leading-none">
                 {user?.email?.[0]?.toUpperCase() ?? 'U'}
@@ -279,9 +283,9 @@ export default function Layout() {
               <p className="text-sm font-medium text-white leading-none">
                 {user?.business_name ?? 'My Business'}
               </p>
-              <p className="text-xs text-gray-500 mt-0.5 truncate max-w-45">{user?.email}</p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[180px]">{user?.email}</p>
             </div>
-          </div>
+          </button>
         </header>
 
         {/* Page */}
