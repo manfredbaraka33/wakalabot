@@ -36,7 +36,7 @@ function DetailRow({ label, value, mono }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2 border-b border-gray-800 last:border-0">
       <span className="text-xs text-gray-500 uppercase font-semibold tracking-wider shrink-0 w-32">{label}</span>
-      <span className={`text-sm text-white text-right ${mono ? 'font-mono text-xs' : ''}`}>
+      <span className={`text-sm text-white text-right overflow-x-auto ${mono ? 'font-mono text-xs' : ''}`}>
         {value ?? '—'}
       </span>
     </div>

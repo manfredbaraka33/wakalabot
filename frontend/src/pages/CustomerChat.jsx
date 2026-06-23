@@ -5,7 +5,8 @@ import ReactMarkdown from 'react-markdown'
 import {
   BotMessageSquare, Send, Search, ArrowLeft, Sun, Moon,
   ChevronLeft, ChevronRight, BadgeCheck, Loader2, LogOut, X,
-  Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot,ChevronDown,Maximize
+  Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot,ChevronDown,Maximize,
+  Eye,EyeOff
 } from 'lucide-react'
 import WakalaLogo from '../components/Wakalalogo'
 
@@ -234,6 +235,7 @@ function CustomerAccountModal({ customer, onClose, onUpdate }) {
 function LoginForm({ onSuccess }) {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -266,13 +268,25 @@ function LoginForm({ onSuccess }) {
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-400 mb-1.5">Neno la Siri</label>
-        <input
-          type="password" value={password} onChange={e => setPassword(e.target.value)}
-          placeholder="••••••"
-          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-        />
-      </div>
+  <label className="block text-xs font-medium text-gray-400 mb-1.5">Neno la Siri</label>
+  <div className="relative">
+      <input
+        type={showPassword ? 'text' : 'password'} 
+        value={password} 
+        onChange={e => setPassword(e.target.value)}
+        placeholder="••••••"
+        className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-4 pr-10 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+      />
+      <button
+        type="button" 
+        onClick={() => setShowPassword(v => !v)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
+        title={showPassword ? "Ficha neno la siri" : "Onesha neno la siri"}
+      >
+        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
+    </div>
+    </div>
       {error && <p className="text-red-400 text-xs">{error}</p>}
       <button
         type="submit" disabled={loading || !phone || !password}
@@ -373,6 +387,7 @@ function RegisterForm({ onSuccess }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showClaim, setShowClaim] = useState(false)
@@ -455,14 +470,27 @@ function RegisterForm({ onSuccess }) {
           className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
         />
       </div>
+      
       <div>
-        <label className="block text-xs font-medium text-gray-400 mb-1.5">Neno la Siri</label>
+      <label className="block text-xs font-medium text-gray-400 mb-1.5">Neno la Siri</label>
+      <div className="relative">
         <input
-          type="password" value={password} onChange={e => setPassword(e.target.value)}
+          type={showPassword ? 'text' : 'password'} 
+          value={password} 
+          onChange={e => setPassword(e.target.value)}
           placeholder="Angalau herufi 6"
-          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+          className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-4 pr-10 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
         />
+        <button
+          type="button" // Prevents form trigger behavior on click
+          onClick={() => setShowPassword(v => !v)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
+          title={showPassword ? "Ficha neno la siri" : "Onesha neno la siri"}
+        >
+          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
       </div>
+    </div>
 
       {error && <p className="text-red-400 text-xs">{error}</p>}
 

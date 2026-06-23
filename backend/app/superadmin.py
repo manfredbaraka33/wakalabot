@@ -705,17 +705,53 @@ async def list_customers(
     ]
 
 
+
+
+from sqlalchemy import delete
+from app.models import Conversation, CustomerNote, UnansweredQuestion 
+
 @router.delete("/customers/{customer_id}", dependencies=[Depends(get_superadmin)])
 async def delete_customer(
     customer_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    # 1. Fetch the customer first to get their phone number
     customer = await db.get(Customer, customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+        
+    target_phone = customer.phone
+
+    # 2. Delete Customer Notes tied to this phone number
+    await db.execute(
+        delete(CustomerNote).where(CustomerNote.customer_phone == target_phone)
+    )
+
+    # 3. Delete Unanswered Questions tied to this phone number
+    await db.execute(
+        delete(UnansweredQuestion).where(UnansweredQuestion.customer_phone == target_phone)
+    )
+
+    # 4. Delete Conversations (This automatically triggers cascades!)
+    # Because your Conversation model has cascade="all, delete-orphan" on its relationships,
+    # deleting the conversation will instantly wipe out all linked Messages and LeadEvents.
+    await db.execute(
+        delete(Conversation).where(Conversation.customer_phone == target_phone)
+    )
+
+    # 5. Delete the actual Customer account
     await db.delete(customer)
+    
+    # Commit all changes in a single transaction
     await db.commit()
-    return {"status": "deleted"}
+
+    return {
+        "status": "deleted", 
+        "detail": f"Customer and all chat records for phone {target_phone} wiped successfully."
+    }
+
+
+
 
 
 # ── Number Claims ─────────────────────────────────────────────────────────────
