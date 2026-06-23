@@ -77,7 +77,8 @@ const { data, isLoading } = useQuery({
 
       {/* Table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="border-b border-gray-800">
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Rating</th>
@@ -115,6 +116,7 @@ const { data, isLoading } = useQuery({
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

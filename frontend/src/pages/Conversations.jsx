@@ -128,7 +128,7 @@ function MessageBubble({ msg }) {
         <div className={`rounded-2xl px-3 py-2 text-sm shadow-sm flex flex-col ${
           isUser
             ? 'bg-gray-700 text-white rounded-tl-none'
-            : 'bg-indigo-600 text-white rounded-tr-none'
+            : 'bg-indigo-700 text-yellow-100 rounded-tr-none' 
         }`}>
           {allImages.map((url, i) => (
             <img
@@ -345,12 +345,7 @@ export default function Conversations() {
             
             </div>
 
-           {/* Leads panel or messages */}
-            {showLeads ? (
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <LeadsPanel convId={selectedId} />
-              </div>
-            ) : (
+          
               <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1" onScroll={handleScroll}>
                 <div ref={topRef} /> {/* Invisible div to act as our top target */}
                 
@@ -368,7 +363,7 @@ export default function Conversations() {
                 
                 <div ref={bottomRef} /> {/* Invisible div to act as our bottom target */}
               </div>
-            )}
+            
             
             {/* Floating Scroll Navigation Buttons */}
             {!showLeads && (showScrollTop || showScrollDown) && (

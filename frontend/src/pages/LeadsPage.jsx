@@ -13,6 +13,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 function CopyableField({ label, value }) {
   const [copied, setCopied] = useState(false)
 
+  // Helper to show a truncated version for the UI
+  const displayValue = value && value.length > 10 
+    ? `${value.slice(0, 8)}...` 
+    : value;
+
   function copy() {
     if (!value) return
     navigator.clipboard.writeText(value)
@@ -23,7 +28,7 @@ function CopyableField({ label, value }) {
   return (
     <div className="flex items-center gap-1.5 bg-gray-800/60 border border-gray-700/40 rounded-lg px-2.5 py-1">
       <span className="text-[10px] text-gray-500 uppercase font-semibold shrink-0">{label}:</span>
-      <span className="text-[11px] text-gray-300 font-mono truncate">{value || '—'}</span>
+      <span className="text-[11px] text-gray-300 font-mono truncate">{displayValue || '—'}</span>
       {value && (
         <button
           onClick={copy}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { BotMessageSquare, Shield, Lock } from 'lucide-react'
+import WakalaLogo from './Wakalalogo'
 
 export default function Footer() {
   return (
@@ -9,12 +10,7 @@ export default function Footer() {
 
           {/* Column A — Brand */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-                <BotMessageSquare className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-lg font-bold text-white">WakalaBot</span>
-            </div>
+            <WakalaLogo />
             <p className="text-sm text-gray-400 leading-relaxed">
               AI-Native Solutions from Tanzania.
               <br />

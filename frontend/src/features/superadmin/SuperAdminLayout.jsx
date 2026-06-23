@@ -13,10 +13,15 @@ import {
   ShieldCheck,
   Coins,
   Send,
-  MessageSquare
+  MessageSquare,
+  Moon,
+  Sun
 } from 'lucide-react'
 import { clearSAToken, getSAToken } from '../../api/superadmin'
 import { Navigate } from 'react-router-dom'
+import { useTheme } from '../../hooks/useTheme'
+import WakalaLogo from '../../components/Wakalalogo'
+
 
 const NAV = [
   { to: '/superadmin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -54,6 +59,7 @@ export default function SuperAdminLayout() {
   const token = getSAToken()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const { theme, toggle } = useTheme()
 
   if (!token) return <Navigate to="/superadmin/login" replace />
 
@@ -79,14 +85,15 @@ export default function SuperAdminLayout() {
         }`}
       >
         {/* Logo */}
-        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-gray-800 px-5">
-          <div className="w-8 h-8 rounded-lg bg-[#6366f1] flex items-center justify-center">
-            <BotMessageSquare className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white leading-tight">WakalaBot</p>
-            <p className="text-xs text-[#6366f1] font-medium">Nerve Center</p>
-          </div>
+        <div className=" h-16 shrink-0 items-center my-3 gap-2.5 border-b border-gray-800 px-5">
+            
+      
+            <WakalaLogo />
+            <br />
+            <center>
+              <p className='font-bold text-yellow-600'>Nerve Center</p>
+            </center>
+           
         </div>
 
         {/* Admin badge */}
@@ -104,6 +111,20 @@ export default function SuperAdminLayout() {
 
         {/* Footer */}
         <div className="shrink-0 border-t border-gray-800 p-3">
+
+          <div className='flex justify-between'>
+             <div>
+              <button
+            onClick={toggle}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+             </div>
+
+            <div>
+              
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors cursor-pointer"
@@ -111,6 +132,8 @@ export default function SuperAdminLayout() {
             <LogOut className="w-4 h-4" />
             Logout
           </button>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -121,7 +144,17 @@ export default function SuperAdminLayout() {
           <button onClick={() => setOpen(true)} className="text-gray-400 hover:text-white">
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-semibold text-white text-sm">Nerve Center</span>
+          <span className='flex justify-between gap-5'>
+            <span className="font-semibold text-white text-sm">Nerve Center</span>
+            <span><button
+            onClick={toggle}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button></span>
+          </span>
+          
           <div />
         </header>
 

@@ -60,6 +60,9 @@ export const updateTicket = (id, data) =>
 export const toggleVerify = (id) =>
   saClient().patch(`/superadmin/tenants/${id}/verify`)
 
+export const getTenantDetails = (id) =>
+  saClient().get(`/superadmin/tenants/${id}/details`)
+
 export const getTenantSubscription = (id) =>
   saClient().get(`/superadmin/tenants/${id}/subscription`)
 

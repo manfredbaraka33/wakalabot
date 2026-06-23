@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { BotMessageSquare, Smartphone, Coins, Users, MessageSquareCode, ArrowRight, Zap, Database } from 'lucide-react'
 import Footer from '../components/Footer'
+import WakalaLogo from '../components/Wakalalogo'
 
 const FEATURES = [
   {
@@ -72,22 +73,32 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* ── Nav ── */}
       <nav className="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <BotMessageSquare className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-bold text-white">WakalaBot</span>
-          </div>
-          <Link
-            to="/signin"
-            className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </nav>
+  <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    
+    {/* Logo section stays on the left */}
+    <div className="flex items-center">
+      <WakalaLogo />
+      
+    </div>
 
+    {/* This wrapper pushes both links together to the right */}
+    <div className="flex items-center gap-4">
+      <Link
+        to="/register"
+        className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
+      >
+        Sign up
+      </Link>
+      <Link
+        to="/signin"
+        className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
+      >
+        Sign in
+      </Link>
+    </div>
+
+  </div>
+</nav>
     
       {/* ── Hero ── */}
       <section className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
@@ -114,7 +125,7 @@ export default function LandingPage() {
           {/* CTA — Updated for Free Credits */}
           <div className="flex justify-center">
             <Link
-              to="/signin"
+              to="/register"
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-8 py-3.5 text-base font-semibold text-white transition-colors shadow-lg shadow-indigo-600/20"
             >
               Get Started for Free

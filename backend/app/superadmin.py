@@ -28,13 +28,15 @@ from jose import JWTError, jwt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
-from app.models import Notification, SupportTicket, Tenant, Transaction, Wallet, PaymentRequest
+from app.models import (
+    Notification, SupportTicket, Tenant, Transaction, Wallet, PaymentRequest,
+    Conversation, Subscription,
+)
 from app.schemas import AdminPaymentAction, COIN_PACKAGES
 
 from app.auth import hash_password
 from app.core import settings
 from app.db import get_db
-from app.models import SupportTicket, Tenant, Transaction, Wallet,Notification, PaymentRequest
 from app.schemas import (
     AdminAddCoinsRequest,
     AdminResetPasswordRequest,
@@ -253,8 +255,9 @@ async def list_tenants(
         from sqlalchemy import or_
         stmt = stmt.where(
             or_(
-                Tenant.email.ilike(pattern),
+                Tenant.username.ilike(pattern),
                 Tenant.biz_name.ilike(pattern),
+                Tenant.email.ilike(pattern),
             )
         )
     total = int((await db.scalar(select(func.count()).select_from(stmt.subquery()))) or 0)
@@ -263,16 +266,18 @@ async def list_tenants(
     return {
         "total": total,
         "items": [
-                {
-                    "id": str(t.id),
-                    "biz_name": t.biz_name,
-                    "email": t.email,
-                    "slug": t.slug,
-                    "is_verified": t.is_verified,
-                    "ai_mode": t.ai_mode,
-                }
-                for t in tenants
-            ],
+            {
+                "id": str(t.id),
+                "biz_name": t.biz_name,
+                "username": t.username,
+                "email": t.email,
+                "phone": t.phone,
+                "slug": t.slug,
+                "is_verified": t.is_verified,
+                "ai_mode": t.ai_mode,
+            }
+            for t in tenants
+        ],
     }
 
 
@@ -342,24 +347,56 @@ async def add_coins_to_wallet(
 
 
 # ── Transactions ──────────────────────────────────────────────────────────────
-
 @router.get("/transactions", dependencies=[Depends(get_superadmin)])
 async def list_transactions(
-    status_filter: Optional[str] = Query(default=None, alias="status"),
+    tx_type: Optional[str] = Query(default=None),
+    tenant_id_search: Optional[str] = Query(default=None),
+    date_from: Optional[str] = Query(default=None),
+    date_to: Optional[str] = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    stmt = select(Transaction)
-    if status_filter in ("credit", "deduction"):
-        stmt = stmt.where(Transaction.tx_type == status_filter)
-    stmt = stmt.order_by(Transaction.created_at.desc())
+    from sqlalchemy import and_
 
-    total = int((await db.scalar(select(func.count()).select_from(stmt.subquery()))) or 0)
-    txns = (await db.scalars(stmt.offset(skip).limit(limit))).all()
+    filters = []
+    if tx_type in ("credit", "deduction", "subscription_usage"):
+        filters.append(Transaction.tx_type == tx_type)
+    if tenant_id_search:
+        try:
+            tid = uuid.UUID(tenant_id_search.strip())
+            filters.append(Transaction.tenant_id == tid)
+        except ValueError:
+            pass
+    if date_from:
+        try:
+            filters.append(Transaction.created_at >= datetime.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            filters.append(Transaction.created_at <= datetime.fromisoformat(date_to))
+        except ValueError:
+            pass
+
+    where_clause = and_(*filters) if filters else None
+
+    count_stmt = select(func.count(Transaction.id))
+    amount_stmt = select(func.coalesce(func.sum(Transaction.amount_tzs), 0))
+    data_stmt = select(Transaction).order_by(Transaction.created_at.desc())
+
+    if where_clause is not None:
+        count_stmt = count_stmt.where(where_clause)
+        amount_stmt = amount_stmt.where(where_clause)
+        data_stmt = data_stmt.where(where_clause)
+
+    total = int((await db.scalar(count_stmt)) or 0)
+    total_amount = int((await db.scalar(amount_stmt)) or 0)
+    txns = (await db.scalars(data_stmt.offset(skip).limit(limit))).all()
 
     return {
         "total": total,
+        "total_amount_tzs": total_amount,
         "items": [
             {
                 "id": str(t.id),
@@ -367,12 +404,13 @@ async def list_transactions(
                 "amount_tzs": t.amount_tzs,
                 "coin_amount": t.coin_amount,
                 "tx_type": t.tx_type,
+                "note": t.note,
+                "package_id": t.package_id,
                 "created_at": t.created_at.isoformat(),
             }
             for t in txns
         ],
     }
-
 
 # ── Wallets ───────────────────────────────────────────────────────────────────
 
@@ -834,6 +872,81 @@ async def get_tenant_subscription(
         "messages_included": sub.messages_included,
         "expires_at": sub.expires_at.isoformat(),
     }
+
+
+@router.get("/tenants/{tenant_id}/details", dependencies=[Depends(get_superadmin)])
+async def get_tenant_details(
+    tenant_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    from app.models import Product, LeadEvent
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    wallet = await db.scalar(select(Wallet).where(Wallet.tenant_id == tenant_id))
+
+    sub_result = await db.execute(
+        select(Subscription).where(
+            Subscription.tenant_id == tenant_id,
+            Subscription.status == "active",
+        )
+    )
+    sub = sub_result.scalar_one_or_none()
+
+    total_spent = int(
+        (await db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount_tzs), 0))
+            .where(Transaction.tenant_id == tenant_id, Transaction.tx_type == "credit")
+        )) or 0
+    )
+    conv_count = int(
+        (await db.scalar(
+            select(func.count(Conversation.id)).where(Conversation.tenant_id == tenant_id)
+        )) or 0
+    )
+    lead_count = int(
+        (await db.scalar(
+            select(func.count(LeadEvent.id)).where(LeadEvent.tenant_id == tenant_id)
+        )) or 0
+    )
+    product_count = int(
+        (await db.scalar(
+            select(func.count(Product.id)).where(Product.tenant_id == tenant_id)
+        )) or 0
+    )
+
+    return {
+        "id": str(tenant.id),
+        "biz_name": tenant.biz_name,
+        "username": tenant.username,
+        "email": tenant.email,
+        "phone": tenant.phone,
+        "slug": tenant.slug,
+        "is_verified": tenant.is_verified,
+        "ai_mode": tenant.ai_mode,
+        "wallet": {
+            "balance": wallet.balance if wallet else 0,
+            "last_updated": wallet.last_updated.isoformat() if wallet else None,
+        },
+        "subscription": {
+            "has_subscription": sub is not None,
+            "plan_id": sub.plan_id if sub else None,
+            "messages_used": sub.messages_used if sub else 0,
+            "messages_included": sub.messages_included if sub else 0,
+            "expires_at": sub.expires_at.isoformat() if sub else None,
+        },
+        "stats": {
+            "conversations": conv_count,
+            "leads": lead_count,
+            "products": product_count,
+            "total_spent_tzs": total_spent,
+        },
+    }
+
+
+
 
 
 @router.post("/tenants/{tenant_id}/set-plan", dependencies=[Depends(get_superadmin)])

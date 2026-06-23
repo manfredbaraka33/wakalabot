@@ -32,9 +32,9 @@ const NAV_ITEMS = [
   { to: '/dashboard/conversations', label: 'Conversations', icon: MessageSquare },
   { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/dashboard/billing', label: 'Billing & Wallet', icon: Coins },
-  { to: '/dashboard/support', label: 'Support', icon: Ticket },
   { to: '/dashboard/leads', label: 'Leads', icon: FlameIcon },
-  { to: '/dashboard/unanswered', label: 'Maswali Bila Majibu', icon: HelpCircle }
+  { to: '/dashboard/support', label: 'Support', icon: Ticket },
+  // { to: '/dashboard/unanswered', label: 'Maswali Bila Majibu', icon: HelpCircle }
 ]
 
 function SidebarNavItem({ to, label, icon: Icon, end, onNavigate, collapsed }) {

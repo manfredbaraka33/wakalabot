@@ -234,8 +234,8 @@ async def update_profile(
             existing = await db.execute(
                 select(Tenant).where(Tenant.email == email, Tenant.id != tenant.id)
             )
-            if existing.scalar_one_or_none():
-                raise HTTPException(status_code=409, detail="Email already in use.")
+            # if existing.scalar_one_or_none():
+            #     raise HTTPException(status_code=409, detail="Email already in use.")
             tenant.email = email
         else:
             tenant.email = None

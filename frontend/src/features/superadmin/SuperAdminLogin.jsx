@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { BotMessageSquare, Lock, Eye, EyeOff } from 'lucide-react'
 import { superadminLogin, setSAToken } from '../../api/superadmin'
+import WakalaLogo from '../../components/Wakalalogo'
 
 export default function SuperAdminLogin() {
   const navigate = useNavigate()
@@ -30,9 +31,7 @@ export default function SuperAdminLogin() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8 gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-[#6366f1] to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40">
-            <BotMessageSquare className="w-8 h-8 text-white" />
-          </div>
+          <WakalaLogo />
           <div className="text-center">
             <h1 className="text-2xl font-bold text-white">Nerve Center</h1>
             <p className="text-sm text-gray-400">Wakalabot SuperAdmin</p>

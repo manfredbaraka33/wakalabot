@@ -7,6 +7,7 @@ import {
   ChevronLeft, ChevronRight, BadgeCheck, Loader2, LogOut, X,
   Copy, Check, Download, ThumbsUp, ThumbsDown,User,Bot,ChevronDown,Maximize
 } from 'lucide-react'
+import WakalaLogo from '../components/Wakalalogo'
 
 const API = import.meta.env.VITE_API_URL
 
@@ -502,11 +503,9 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess }) {
         )}
         {!activeBiz && (
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <BotMessageSquare className="w-4 h-4 text-white" />
-            </div>
+            <WakalaLogo />
             <div>
-              <p className="text-white text-sm font-semibold">WakalaBot</p>
+              
               <p className="text-gray-400 text-xs">Customer Service AI</p>
             </div>
           </div>
@@ -772,10 +771,7 @@ export default function CustomerChat() {
             <div style={{ flexShrink: 0 }} className="p-4 border-b border-gray-800">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
-                    <BotMessageSquare className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="text-white font-bold text-sm">WakalaBot</span>
+                  <WakalaLogo />
                 </div>
                 <button onClick={toggle} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
                   {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -828,6 +824,7 @@ export default function CustomerChat() {
                     localStorage.removeItem('wk_customer')
                     setCustomer(null)
                     setAuthed(false)
+                    setShowAuthModal(true)
                   }}
                   className="text-xs text-gray-600 hover:text-red-400 transition-colors shrink-0"
                   title="Toka"
@@ -922,7 +919,7 @@ export default function CustomerChat() {
                     {msg.content && (
                       <div className={`prose prose-invert prose-sm max-w-none px-4 py-2.5 rounded-2xl ${
                         msg.role === 'user'
-                          ? 'bg-indigo-700 text-yellow-100 rounded-br-sm '
+                          ? 'bg-indigo-700 text-yellow-100 rounded-br-sm'
                           : 'bg-gray-800 text-white rounded-bl-sm prose-p:text-white prose-strong:text-white'
                       }`}>
                         <ReactMarkdown>{msg.content}</ReactMarkdown>

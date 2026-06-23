@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Loader2, BotMessageSquare, Eye, EyeOff, AtSign } from 'lucide-react'
 import useTenantStore from '../store/useTenantStore'
 import apiClient from '../api/axios'
+import WakalaLogo from '../components/Wakalalogo'
 
 const schema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -45,12 +46,11 @@ export default function Login() {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-              <BotMessageSquare className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white">WakalaBot</span>
-          </div>
+          <Link to="/">
+
+            <WakalaLogo />
+
+          </Link>
           <p className="text-sm text-gray-400">Smart business management platform</p>
         </div>
 

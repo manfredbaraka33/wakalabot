@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from app.db import get_db
 from app.models import (
     Tenant, Wallet, LeadEvent, Conversation, MessageFeedback, Message,
-    Subscription, UnansweredQuestion
+    Subscription, UnansweredQuestion,Customer
 )  # type: ignore
 from app.schemas import MessageFeedbackCreate  # type: ignore
 from app.services import ai_engine
@@ -292,7 +292,6 @@ async def submit_feedback(
         print(f"Feedback error: {e}")
     return {"status": "ok"}
 
-
 @router.get("/chat/history/{slug}")
 async def get_chat_history(
     slug: str,
@@ -305,8 +304,17 @@ async def get_chat_history(
     try:
         payload = decode_customer_token(token)
         verified_phone = payload["phone"]
+        customer_id = payload["sub"]
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    # Get this customer's registration date — used to hide pre-existing
+    # conversations that belonged to a previous owner of the same phone number.
+    customer_result = await db.execute(
+        select(Customer).where(Customer.id == uuid.UUID(customer_id))
+    )
+    customer = customer_result.scalar_one_or_none()
+    customer_since = customer.created_at if customer else None
 
     tenant = await _get_tenant_by_slug(slug, db)
     conv_result = await db.execute(
@@ -319,12 +327,18 @@ async def get_chat_history(
     if not conv:
         return {"messages": []}
 
-    msgs_result = await db.execute(
+    msgs_query = (
         select(Message)
         .where(Message.conversation_id == conv.id)
         .order_by(Message.timestamp.asc())
         .limit(20)
     )
+    # Only show messages sent after the current account was created —
+    # prevents a claim-resolver from reading the previous owner's messages.
+    if customer_since:
+        msgs_query = msgs_query.where(Message.timestamp >= customer_since)
+
+    msgs_result = await db.execute(msgs_query)
     msgs = msgs_result.scalars().all()
     return {
         "messages": [
