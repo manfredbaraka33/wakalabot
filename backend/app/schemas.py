@@ -189,7 +189,7 @@ class AiModeRequest(BaseModel):
 # ── Payment Requests ──────────────────────────────────────────────────────────
 
 COIN_PACKAGES = [
-    {"id": "basic", "amount_tzs": 5000, "coins": 100, "label": "Basic"},
+    {"id": "basic", "amount_tzs": 5000, "coins": 150, "label": "Basic"},
     {"id": "standard", "amount_tzs": 15000, "coins": 350, "label": "Standard"},
     {"id": "premium", "amount_tzs": 30000, "coins": 800, "label": "Premium"},
     {"id": "business", "amount_tzs": 50000, "coins": 1500, "label": "Business"},

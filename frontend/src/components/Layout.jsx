@@ -65,6 +65,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
 import apiClient from '../api/axios'
 import { useState as useStateN } from 'react'
+import WakalaLogo from './Wakalalogo'
 
 function NotificationBell() {
   const [open, setOpen] = useStateN(false)
@@ -189,17 +190,27 @@ export default function Layout() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${collapsed ? 'w-16' : 'w-64'}`}
       >
+
+        
         {/* Logo */}
-        <div className={`flex h-16 shrink-0 items-center border-b border-gray-800 px-3 ${
-          collapsed ? 'justify-center' : 'gap-2.5 px-5'
-        }`}>
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-            <BotMessageSquare className="w-5 h-5 text-white" />
+      <div className={`flex h-16 shrink-0 items-center border-b border-gray-800 ${
+        collapsed ? 'justify-center px-3' : 'gap-2.5 px-5'
+      }`}>
+        {collapsed ? (
+          <div className="w-8 h-8 flex items-center justify-center shrink-0">
+            <img 
+            src="/wakalabot_logo.png" 
+            alt="WakalaBot Logo" 
+            className="w-8 h-8 rounded-2xl object-cover shadow-lg shadow-emerald-900/40"
+          />  
           </div>
-          {!collapsed && (
-            <span className="text-lg font-bold text-white">WakalaBot</span>
-          )}
-        </div>
+        ) : (
+          <div className="flex items-center gap-2.5">
+            <WakalaLogo className="w-8 h-8" />
+            
+          </div>
+        )}
+      </div>
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-0.5">

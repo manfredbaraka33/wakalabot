@@ -24,24 +24,24 @@ from app.core import settings
 from app.models import Conversation, KnowledgeBase, Message, Notification, Transaction, Wallet
 from app.tools import TOOLS, ToolExecutor
 
-HISTORY_WINDOW = 10
+HISTORY_WINDOW = 6
 MAX_TOOL_ROUNDS = 5
 
 # ── Pricing ───────────────────────────────────────────────────────────────────
 PRICING = {
     "eco": {
         "model": "gemini-3.1-flash-lite",
-        "input_per_1k": 0.000750,
-        "output_per_1k": 0.001500,
+        "input_per_1k":  0.00025,   # $0.25 per 1 Million tokens
+        "output_per_1k": 0.00150,   # $1.50 per 1 Million tokens
     },
     "smart": {
         "model": "gemini-3.5-flash",
-        "input_per_1k": 0.004500,
-        "output_per_1k": 0.009000,
+        "input_per_1k":  0.00150,   # $1.50 per 1 Million tokens
+        "output_per_1k": 0.00900,   # $9.00 per 1 Million tokens
     },
 }
 
-COIN_VALUE_USD = 0.000099
+COIN_VALUE_USD = 0.000220  
 
 _IMAGE_TAG_RE = re.compile(r"\[IMAGE_URL:\s*(https?://[^\]]+)\]", re.IGNORECASE)
 _FORCE_IMAGE_RE = re.compile(r"\bFORCE_IMAGE\b", re.IGNORECASE)
@@ -115,6 +115,60 @@ def _extract_text(response) -> str:
         return "".join(texts).strip()
     except Exception:
         return ""
+
+
+
+
+# Tools always available — cover 90% of actual usage
+_CORE_TOOL_NAMES = {
+    "get_product_catalog", "get_service_catalog", "get_product_by_name",
+    "get_service_by_name", "get_shop_info", "check_stock",
+    "search_knowledge_base", "save_lead", "save_customer_note",
+    "calculate_order_total", "get_customer_history", "log_unanswered_question",
+}
+
+# Tools only loaded when conversation hints they might be needed
+_EXTENDED_TOOL_NAMES = {
+    "calculate_delivery_cost", "create_notification", "escalate_to_human",
+    "generate_insight", "fetch_business_website", "search_web", "context_restore",
+}
+
+
+def _get_tools_for_context(user_input: str, history_text: str) -> list[types.Tool]:
+    """Load core tools, and append extended tools only when keywords match."""
+    combined_text = (user_input + history_text).lower()
+    
+    needs_extended = any(kw in combined_text for kw in [
+        "delivery", "deliver", "mkopo", "escalat", "website", "tovuti",
+        "internet", "search", "hasira", "angry", "complaint",
+    ])
+    
+    # 1. Filter tools strictly using your sets
+    if needs_extended:
+        # Include BOTH Core and Extended tools
+        tool_set = [
+            t for t in TOOLS 
+            if t["function"]["name"] in _CORE_TOOL_NAMES 
+            or t["function"]["name"] in _EXTENDED_TOOL_NAMES
+        ]
+    else:
+        # Include ONLY Core tools to minimize token cost
+        tool_set = [
+            t for t in TOOLS if t["function"]["name"] in _CORE_TOOL_NAMES
+        ]
+        
+    # 2. Build the native declarations list
+    declarations = []
+    for t in tool_set:
+        f = t["function"]
+        norm_params = _normalize_schema(f.get("parameters", {}))
+        declarations.append(types.FunctionDeclaration(
+            name=f["name"],
+            description=f["description"],
+            parameters=norm_params,
+        ))
+        
+    return [types.Tool(function_declarations=declarations)]
 
 
 class AIEngine:
@@ -318,38 +372,38 @@ class AIEngine:
 ABSOLUTE RULES:
 
 1. NEVER GUESS BUSINESS DATA.
-   Always call a tool before answering questions about products, services, prices,
-   stock, location, hours, or delivery. If the tool returns found=false, tell the
-   customer that item or info is not available. Never invent any price, stock count,
-   or business detail.
+Always call a tool before answering questions about products, services, prices,
+stock, location, hours, or delivery. If the tool returns found=false, tell the
+customer that item or info is not available. Never invent any price, stock count,
+or business detail.
 
 2. LANGUAGE.
-   Default Swahili. Match customer's language exactly.
-   One honorific per reply maximum ('boss', 'mkuu').
+Default Swahili. Match customer's language exactly.
+One honorific per reply maximum ('boss', 'mkuu').
 
 3. PURCHASE FLOW.
-   - Confirm item and price from tool data.
-   - If customer name unknown: ask naturally before saving lead.
-   - Once name known and intent clear: call save_lead immediately.
-   - After lead saved: "Biashara itawasiliana nawe hivi karibuni." Close the topic.
+- Confirm item and price from tool data.
+- If customer name unknown: ask naturally before saving lead.
+- Once name known and intent clear: call save_lead immediately.
+- After lead saved: "Biashara itawasiliana nawe hivi karibuni." Close the topic.
 
 4. IMAGES.
-   Only send [IMAGE_URL: url] when customer says 'picha', 'onyesha', 'show me', 'nitumie picha'.
-   Get URL from tool result image_url field. Never invent URLs.
-   Place [IMAGE_URL: url] alone on the last line of your reply.
+Only send [IMAGE_URL: url] when customer says 'picha', 'onyesha', 'show me', 'nitumie picha'.
+Get URL from tool result image_url field. Never invent URLs.
+Place [IMAGE_URL: url] alone on the last line of your reply.
 
 5. FAREWELLS.
-   'bye', 'nakuaga', 'baadaye' → one short warm farewell, stop.
+'bye', 'nakuaga', 'baadaye' → one short warm farewell, stop.
 
 6. ESCALATION.
-   Angry or complex issue → escalate_to_human tool.
+Angry or complex issue → escalate_to_human tool.
 
 7. INSIGHTS.
-   Valuable observations → save_customer_note or generate_insight.
+Valuable observations → save_customer_note or generate_insight.
 
 8. DISCLAIMER.
-   Add exactly once, at the end of your very first reply only:
-   _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
+Add exactly once, at the end of your very first reply only:
+_WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
 """
 
         # ── 4. Build native message content arrays ──────────────────────────
@@ -373,6 +427,8 @@ ABSOLUTE RULES:
             )
         )
 
+        history_text = " ".join([msg.content for msg in history if msg.content])
+
         # ── 5. Agent loop — multi-round, AFC disabled ───────────────────────
         model_name = PRICING.get(ai_mode, PRICING["eco"])["model"]
         total_prompt = 0
@@ -381,11 +437,14 @@ ABSOLUTE RULES:
         answer = ""
 
         try:
+            # 👇 GENERATE DYNAMIC TOOLS FOR THE FIRST CALL
+            dynamic_tools = _get_tools_for_context(user_input, history_text)
+
             response = await self.client.aio.models.generate_content(
                 model=model_name,
                 contents=contents,
                 config=types.GenerateContentConfig(
-                    tools=self._native_tools,
+                    tools=dynamic_tools,
                     temperature=0.3,
                     max_output_tokens=1024,
                     system_instruction=system_prompt,
@@ -424,7 +483,7 @@ ABSOLUTE RULES:
                     model=model_name,
                     contents=contents,
                     config=types.GenerateContentConfig(
-                        tools=self._native_tools,
+                        tools=dynamic_tools,
                         temperature=0.3,
                         max_output_tokens=512,
                         system_instruction=system_prompt,

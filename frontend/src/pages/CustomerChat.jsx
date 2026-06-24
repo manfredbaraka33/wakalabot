@@ -9,6 +9,7 @@ import {
   Eye,EyeOff
 } from 'lucide-react'
 import WakalaLogo from '../components/Wakalalogo'
+import remarkGfm from 'remark-gfm'
 
 const API = import.meta.env.VITE_API_URL
 
@@ -950,7 +951,20 @@ export default function CustomerChat() {
                           ? 'bg-indigo-700 text-yellow-100 rounded-br-sm'
                           : 'bg-gray-800 text-white rounded-bl-sm prose-p:text-white prose-strong:text-white'
                       }`}>
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}
+                        
+                        components={{
+                          a: ({ node, ...props }) => (
+                            <a 
+                              {...props} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-indigo-400 hover:text-indigo-300 underline font-medium break-all"
+                            />
+                          )
+                        }}
+                        
+                        >{msg.content}</ReactMarkdown>
                       </div>
                     )}
 

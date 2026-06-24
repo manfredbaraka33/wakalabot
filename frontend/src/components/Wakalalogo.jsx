@@ -6,7 +6,7 @@ const WakalaLogo = () => {
       <img 
         src="/wakalabot_logo.png" 
         alt="WakalaBot Logo" 
-        className="w-14 h-14 rounded-2xl object-cover shadow-lg shadow-emerald-900/40"
+        className="w-12 h-12 rounded-2xl object-cover shadow-lg shadow-emerald-900/40"
       />
       <span className="text-2xl font-bold text-indigo-500">WakalaBot</span>
     </div>
