@@ -1,6 +1,8 @@
 ﻿import ReactMarkdown from 'react-markdown'
 import { Link } from 'react-router-dom'
 import Footer from '../components/Footer'
+import WakalaLogo from '../components/Wakalalogo'
+
 
 // Embed the markdown content directly to avoid fetch CORS issues in dev
 const TERMS_CONTENT = `
@@ -46,7 +48,7 @@ These Terms shall be governed by the laws of the United Republic of Tanzania, wi
 We reserve the right to modify these Terms at any time. We will notify registered users of material changes via email. Continued use of the Service after changes constitutes acceptance of the new Terms.
 
 ## 12. Contact
-For questions about these Terms, please contact us at **legal@wakalabot.com**.
+For questions about these Terms, please contact us at **info@wakalabot.com**.
 
 ---
 *Wakalabot — Accelerating Tanzanian and International businesses, from SMEs to large enterprises, using AI.*
@@ -59,8 +61,7 @@ export default function TermsOfService() {
       <header className="border-b border-gray-800 bg-gray-900">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-xl font-bold text-white">
-            <div className="w-8 h-8 rounded-lg bg-[#6366f1] flex items-center justify-center text-white text-sm font-bold">W</div>
-            WakalaBot
+            <WakalaLogo />
           </Link>
           <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors">
             Back to App →

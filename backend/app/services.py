@@ -341,6 +341,19 @@ class AIEngine:
 
         history = await self._load_history(db, conv.id)
 
+        # ── Fetch active customer notice ─────────────────────────────
+        notice_result = await db.execute(
+            select(KnowledgeBase).where(
+                KnowledgeBase.tenant_id == tenant_id,
+                KnowledgeBase.content.like("__CUSTOMER_NOTICE__%"),
+            )
+        )
+        notice_row = notice_result.scalar_one_or_none()
+        active_notice = (
+            notice_row.content[len("__CUSTOMER_NOTICE__:"):].strip()
+            if notice_row else None
+        )
+
         # ── 2. Tool executor ────────────────────────────────────────────────
         executor = ToolExecutor(
             db=db,
@@ -366,8 +379,17 @@ class AIEngine:
             else "Customer name: unknown — ask naturally only when they want to order."
         )
 
+        notice_block = f"""
+9. ACTIVE NOTICE.
+The merchant has posted this notice to all customers:
+"{active_notice}"
+Mention this notice naturally in your FIRST reply to the customer.
+If the notice affects their question (e.g. delivery paused, shop closed),
+address it directly and prioritize it over other information.
+""" if active_notice else ""
+
         system_prompt = f"""You are a sharp, warm customer service agent for {biz_name} in Tanzania.
-{customer_ctx}{post_deal}
+{customer_ctx}{post_deal}{notice_block}
 
 ABSOLUTE RULES:
 
@@ -404,6 +426,9 @@ Valuable observations → save_customer_note or generate_insight.
 8. DISCLAIMER.
 Add exactly once, at the end of your very first reply only:
 _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
+
+
+
 """
 
         # ── 4. Build native message content arrays ──────────────────────────

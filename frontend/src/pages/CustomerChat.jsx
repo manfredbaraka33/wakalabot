@@ -596,6 +596,9 @@ export default function CustomerChat() {
   const [showScrollDown, setShowScrollDown] = useState(false)
   const [fullImage, setFullImage] = useState(null);
 
+  const [notice, setNotice] = useState(null)
+  const [noticeRead, setNoticeRead] = useState(false)
+
   // ── Load directory ──────────────────────────────────────────────────────
   useEffect(() => {
     fetch(`${API}/api/v1/chat/directory`)
@@ -611,7 +614,21 @@ export default function CustomerChat() {
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(biz => {
         setActiveBiz(biz)
+
+        // Load notice for this business
+        fetch(`${API}/api/v1/chat/notice/${slug}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data?.notice) {
+              setNotice(data.notice)
+              // Check if this customer already read this notice
+              const readKey = `wk_notice_read_${slug}_${data.notice.slice(0, 20)}`
+              setNoticeRead(!!localStorage.getItem(readKey))
+            }
+          })
+          .catch(() => {})
         setBizError(null)
+
         if (!authed) {
           setShowAuthModal(true)
           return
@@ -930,6 +947,35 @@ export default function CustomerChat() {
                 </div>
               )}
             </div>
+
+            {/* Notice banner */}
+            {notice && activeBiz && (
+              <div
+                className={`shrink-0 flex items-start gap-3 px-4 py-3 border-b border-amber-500/20 transition-all ${
+                  noticeRead
+                    ? 'bg-amber-500/5'
+                    : 'bg-amber-500/10 animate-pulse'
+                }`}
+                style={noticeRead ? {} : { animationDuration: '2s' }}
+              >
+                <span className="text-amber-400 text-base shrink-0 mt-0.5">
+                  {noticeRead ? '📢' : '⚠️'}
+                </span>
+                <p className="text-amber-300 text-xs leading-relaxed flex-1">{notice}</p>
+                {!noticeRead && (
+                  <button
+                    onClick={() => {
+                      setNoticeRead(true)
+                      const readKey = `wk_notice_read_${activeBiz.slug}_${notice.slice(0, 20)}`
+                      localStorage.setItem(readKey, '1')
+                    }}
+                    className="shrink-0 text-[10px] text-amber-400 border border-amber-500/30 rounded-md px-2 py-0.5 hover:bg-amber-500/20 transition-colors"
+                  >
+                    Got it
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" onScroll={handleScroll}>

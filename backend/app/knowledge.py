@@ -220,3 +220,62 @@ async def save_shop_settings(
     await db.commit()
     return {"status": "saved"}
 
+
+
+NOTICE_PREFIX = "__CUSTOMER_NOTICE__:"
+
+@router.get("/shop-notice")
+async def get_shop_notice(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(
+        select(KnowledgeBase).where(
+            KnowledgeBase.tenant_id == tenant.id,
+            KnowledgeBase.content.like(f"{NOTICE_PREFIX}%"),
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        return {"notice": None, "id": None}
+    return {
+        "notice": row.content[len(NOTICE_PREFIX):].strip(),
+        "id": str(row.id),
+    }
+
+
+@router.post("/shop-notice")
+async def set_shop_notice(
+    payload: dict,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    text = (payload.get("notice") or "").strip()[:280]  # hard cap
+
+    # Find existing
+    result = await db.execute(
+        select(KnowledgeBase).where(
+            KnowledgeBase.tenant_id == tenant.id,
+            KnowledgeBase.content.like(f"{NOTICE_PREFIX}%"),
+        )
+    )
+    row = result.scalar_one_or_none()
+
+    if not text:
+        # Empty = delete the notice
+        if row:
+            await db.delete(row)
+            await db.commit()
+        return {"notice": None}
+
+    if row:
+        row.content = f"{NOTICE_PREFIX}{text}"
+    else:
+        db.add(KnowledgeBase(
+            tenant_id=tenant.id,
+            content=f"{NOTICE_PREFIX}{text}",
+            embedding=None,
+        ))
+    await db.commit()
+    return {"notice": text}
+

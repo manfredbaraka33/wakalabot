@@ -4,9 +4,10 @@ import { z } from 'zod'
 import {
   Save, Loader2, Clock, MapPin, Phone, Link2, QrCode,
   Copy, Check, Zap, Brain, X, Code, Globe, Truck, FileText, Lock,
+  Bell,Trash2Icon
 } from 'lucide-react'
-import { useState, useRef } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState, useRef,useEffect } from 'react'
+import { useQuery, useQueryClient,useMutation } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import apiClient from '../../api/axios'
 
@@ -91,6 +92,20 @@ export default function ShopSettings() {
   const [showCoinModal, setShowCoinModal] = useState(false)
   const queryClient = useQueryClient()
   const qrRef = useRef(null)
+
+  const [notice, setNotice] = useState('')
+const [noticeSaving, setNoticeSaving] = useState('idle')
+
+const { data: noticeData } = useQuery({
+  queryKey: ['shop-notice'],
+  queryFn: () => apiClient.get('/api/v1/knowledge/shop-notice').then(r => r.data),
+})
+
+useEffect(() => {
+  if (noticeData) {
+    setNotice(noticeData.notice ?? '')
+  }
+}, [noticeData])
 
   const { data: existing, isLoading } = useQuery({
     queryKey: ['shop-settings'],
@@ -319,6 +334,85 @@ export default function ShopSettings() {
           </button>
         </div>
       </form>
+
+
+      {/* Customer Notice */}
+      <div className="bg-gray-900 border border-amber-500/30 rounded-xl p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
+            <Bell className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-white">Customer Notice</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              A pinned alert shown to every customer who opens your chat. The AI will also reference it in conversations. Leave blank to remove.
+            </p>
+          </div>
+        </div>
+
+        {notice && (
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            <span className="text-amber-400 text-sm mt-0.5 shrink-0">⚠️</span>
+            <p className="text-amber-300 text-xs leading-relaxed">{notice}</p>
+          </div>
+        )}
+
+        <div>
+          <textarea
+            value={notice}
+            onChange={e => setNotice(e.target.value.slice(0, 280))}
+            rows={3}
+            placeholder='e.g. "Duka limefungwa Jumamosi na Jumapili. Tunarudi Jumatatu."'
+            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none transition"
+            maxLength={280}
+          />
+          <div className="flex items-center justify-between mt-1">
+            <p className={`text-xs ${notice.length > 250 ? 'text-amber-400' : 'text-gray-600'}`}>
+              {notice.length}/280 characters
+            </p>
+            {noticeData?.notice && !notice && (
+              <p className="text-xs text-gray-500">Empty = notice removed from chat</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="text-xs">
+            {noticeSaving === 'saved' && <span className="text-amber-400 font-medium">✓ Notice updated</span>}
+            {noticeSaving === 'error' && <span className="text-red-400">Failed — try again</span>}
+          </div>
+          <button
+          onClick={async () => {
+            if (!notice.trim() && !noticeData?.notice) return;
+            
+            setNoticeSaving('saving')
+            try {
+              await apiClient.post('/api/v1/knowledge/shop-notice', { notice })
+              await queryClient.invalidateQueries({ queryKey: ['shop-notice'] })
+              setNoticeSaving('saved')
+              setTimeout(() => setNoticeSaving('idle'), 3000)
+            } catch {
+              setNoticeSaving('error')
+              setTimeout(() => setNoticeSaving('idle'), 4000)
+            }
+          }}
+          disabled={noticeSaving === 'saving'}
+          className="flex items-center gap-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-400 transition-colors disabled:opacity-50"
+        >
+          {noticeSaving === 'saving' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+          
+          {/* Updated Label Logic */}
+          {noticeSaving === 'saving' 
+            ? 'Saving…' 
+            : noticeData?.notice 
+              ? (notice.trim() === '' ? 'Remove Notice' : 'Update Notice') 
+              : 'Create Notice'
+          }
+        </button>
+        </div>
+      </div>
+
+
 
       {/* AI Model Selector */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">

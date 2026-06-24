@@ -419,3 +419,27 @@ async def resolve_question(
     q.is_resolved = True
     await db.commit()
     return {"status": "resolved"}
+
+
+@router.get("/chat/notice/{slug}")
+async def get_chat_notice(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    tenant = await _get_tenant_by_slug(slug, db)
+    
+    
+    from app.models import KnowledgeBase
+
+    result = await db.execute(
+        select(KnowledgeBase).where(
+            KnowledgeBase.tenant_id == tenant.id,
+            KnowledgeBase.content.like("__CUSTOMER_NOTICE__%"),
+        )
+    )
+    row = result.scalar_one_or_none()
+    
+    if not row:
+        return {"notice": None}
+        
+    return {"notice": row.content[len("__CUSTOMER_NOTICE__:") :].strip()}

@@ -1,6 +1,7 @@
 ﻿import ReactMarkdown from 'react-markdown'
 import { Link } from 'react-router-dom'
 import Footer from '../components/Footer'
+import WakalaLogo from '../components/Wakalalogo'
 
 const PRIVACY_CONTENT = `
 # Privacy Policy
@@ -35,7 +36,7 @@ We use your data to:
 
 ## 4. Data Sharing
 We do **not** sell your personal data. We share data only with:
-- **Groq / OpenAI**: For AI inference (messages are processed but not stored by these providers beyond their standard retention periods)
+- **Gemini**: For AI inference (messages are processed but not stored by these providers beyond their standard retention periods)
 - **Cloudinary**: For image storage if you upload product images
 - Law enforcement, when required by Tanzanian law
 
@@ -73,7 +74,7 @@ We will notify you of material changes to this Privacy Policy via email. Continu
 
 ## 11. Contact & Complaints
 **Data Controller**: Wakalabot  
-**Email**: privacy@wakalabot.com  
+**Email**: info@wakalabot.com  
 **Address**: Karagwe, Tanzania
 
 If you believe your rights have been violated, you may lodge a complaint with the **Tanzania Personal Data Protection Commission**.
@@ -82,33 +83,6 @@ If you believe your rights have been violated, you may lodge a complaint with th
 *Wakalabot — Accelerating Tanzanian and International businesses, from SMEs to large enterprises, using AI.*
 `
 
-// export default function PrivacyPolicy() {
-//   return (
-//     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
-//       {/* Header */}
-//       <header className="border-b border-gray-800 bg-gray-900">
-//         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-//           <Link to="/" className="flex items-center gap-2 text-xl font-bold text-white">
-//             <div className="w-8 h-8 rounded-lg bg-[#6366f1] flex items-center justify-center text-white text-sm font-bold">W</div>
-//             WakalaBot
-//           </Link>
-//           <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors">
-//             Back to App →
-//           </Link>
-//         </div>
-//       </header>
-
-//       {/* Content */}
-//       <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-12">
-//         <div className="prose prose-invert prose-headings:text-white prose-p:text-gray-300 prose-li:text-gray-300 prose-a:text-[#6366f1] max-w-none">
-//           <ReactMarkdown>{PRIVACY_CONTENT}</ReactMarkdown>
-//         </div>
-//       </main>
-
-//       <Footer />
-//     </div>
-//   )
-// }
 
 
 export default function PrivacyPolicy() {
@@ -118,8 +92,7 @@ export default function PrivacyPolicy() {
       <header className="border-b border-gray-800 bg-gray-900">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-xl font-bold text-white">
-            <div className="w-8 h-8 rounded-lg bg-[#6366f1] flex items-center justify-center text-white text-sm font-bold">W</div>
-            WakalaBot
+            <WakalaLogo />
           </Link>
           <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors">
             Back to App →
