@@ -41,7 +41,7 @@ PRICING = {
     },
 }
 
-COIN_VALUE_USD = 0.000220  
+COIN_VALUE_USD = 0.000300  
 
 _IMAGE_TAG_RE = re.compile(r"\[IMAGE_URL:\s*(https?://[^\]]+)\]", re.IGNORECASE)
 _FORCE_IMAGE_RE = re.compile(r"\bFORCE_IMAGE\b", re.IGNORECASE)
@@ -61,6 +61,8 @@ def _extract_image(text: str) -> tuple[Optional[str], str]:
     return url, clean
 
 
+import math
+
 def _calculate_coins(
     prompt_tokens: int, completion_tokens: int, mode: str
 ) -> tuple[int, float]:
@@ -69,7 +71,8 @@ def _calculate_coins(
         (prompt_tokens / 1000) * pricing["input_per_1k"]
         + (completion_tokens / 1000) * pricing["output_per_1k"]
     )
-    return max(1, round(usd / COIN_VALUE_USD)), usd
+    # ceil ensures we never round down into a loss on any individual message
+    return max(1, math.ceil(usd / COIN_VALUE_USD)), usd
 
 
 def _normalize_schema(schema: dict) -> dict:

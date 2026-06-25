@@ -376,39 +376,66 @@ useEffect(() => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
           <div className="text-xs">
             {noticeSaving === 'saved' && <span className="text-amber-400 font-medium">✓ Notice updated</span>}
             {noticeSaving === 'error' && <span className="text-red-400">Failed — try again</span>}
           </div>
-          <button
-          onClick={async () => {
-            if (!notice.trim() && !noticeData?.notice) return;
-            
-            setNoticeSaving('saving')
-            try {
-              await apiClient.post('/api/v1/knowledge/shop-notice', { notice })
-              await queryClient.invalidateQueries({ queryKey: ['shop-notice'] })
-              setNoticeSaving('saved')
-              setTimeout(() => setNoticeSaving('idle'), 3000)
-            } catch {
-              setNoticeSaving('error')
-              setTimeout(() => setNoticeSaving('idle'), 4000)
-            }
-          }}
-          disabled={noticeSaving === 'saving'}
-          className="flex items-center gap-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-400 transition-colors disabled:opacity-50"
-        >
-          {noticeSaving === 'saving' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
-          
-          {/* Updated Label Logic */}
-          {noticeSaving === 'saving' 
-            ? 'Saving…' 
-            : noticeData?.notice 
-              ? (notice.trim() === '' ? 'Remove Notice' : 'Update Notice') 
-              : 'Create Notice'
-          }
-        </button>
+          <div className="flex items-center gap-2">
+            {/* Remove button — only visible when a notice is saved on server */}
+            {noticeData?.notice && (
+              <button
+                onClick={async () => {
+                  setNoticeSaving('saving')
+                  try {
+                    await apiClient.post('/api/v1/knowledge/shop-notice', { notice: '' })
+                    setNotice('')
+                    await queryClient.invalidateQueries({ queryKey: ['shop-notice'] })
+                    setNoticeSaving('saved')
+                    setTimeout(() => setNoticeSaving('idle'), 3000)
+                  } catch {
+                    setNoticeSaving('error')
+                    setTimeout(() => setNoticeSaving('idle'), 4000)
+                  }
+                }}
+                disabled={noticeSaving === 'saving'}
+                className="flex items-center gap-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-3 py-2 text-sm font-semibold text-red-400 transition-colors disabled:opacity-50"
+              >
+                <Trash2Icon className="w-3.5 h-3.5" />
+                Remove
+              </button>
+            )}
+
+            {/* Save/update button — only for creating or updating content */}
+            <button
+              onClick={async () => {
+                if (!notice.trim()) return
+                setNoticeSaving('saving')
+                try {
+                  await apiClient.post('/api/v1/knowledge/shop-notice', { notice })
+                  await queryClient.invalidateQueries({ queryKey: ['shop-notice'] })
+                  setNoticeSaving('saved')
+                  setTimeout(() => setNoticeSaving('idle'), 3000)
+                } catch {
+                  setNoticeSaving('error')
+                  setTimeout(() => setNoticeSaving('idle'), 4000)
+                }
+              }}
+              disabled={noticeSaving === 'saving' || !notice.trim()}
+              className="flex items-center gap-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-400 transition-colors disabled:opacity-50"
+            >
+              {noticeSaving === 'saving'
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Bell className="w-3.5 h-3.5" />
+              }
+              {noticeSaving === 'saving'
+                ? 'Saving…'
+                : noticeData?.notice
+                ? 'Update Notice'
+                : 'Create Notice'
+              }
+            </button>
+          </div>
         </div>
       </div>
 

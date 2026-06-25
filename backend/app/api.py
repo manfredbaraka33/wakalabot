@@ -236,6 +236,53 @@ async def chat_message(
         tools_used=tools_used,
     )
 
+@router.post("/chat/message/noauth", response_model=ChatResponse)
+async def chat_message(
+    body: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ChatResponse:
+    tenant = await _get_tenant_by_slug(body.tenant_slug, db)
+    await _check_wallet(tenant.id, db)
+
+    # ── Resolved customer identity without authentication token ──
+    # Reads fallback metadata directly from the request schema
+    resolved_phone = getattr(body, "customer_phone", "guest-anonymous")
+    resolved_name = getattr(body, "customer_name", "Mteja")
+
+    try:
+        effective_ai_mode = await _resolve_ai_mode(tenant, db)
+        reply, tools_used, new_msg = await ai_engine.get_answer(
+            db=db,
+            user_input=body.message,
+            tenant_id=tenant.id,
+            customer_phone=resolved_phone,
+            customer_name=resolved_name,
+            biz_name=tenant.biz_name,
+            ai_mode=effective_ai_mode,
+        )
+
+    except APITimeoutError:
+        raise HTTPException(
+            status_code=503,
+            detail="Samahani, jibu halikuja kwa wakati. Tafadhali jaribu tena."
+        )
+    except Exception:
+        logger.exception("AI engine error for tenant=%s", tenant.id)
+        raise HTTPException(
+            status_code=500,
+            detail="Samahani, kuna tatizo la muda mfupi. Tafadhali jaribu tena."
+        )
+
+    image_url, clean_reply = _extract_image(reply)
+    clean_reply, quick_reply = _parse_quick_reply(clean_reply)
+
+    return ChatResponse(
+        id=str(new_msg.id),
+        reply=clean_reply,
+        image_url=new_msg.image_url,
+        quick_reply=quick_reply,
+        tools_used=tools_used,
+    )
 
 @router.get("/admin/leads")
 async def get_all_global_leads(

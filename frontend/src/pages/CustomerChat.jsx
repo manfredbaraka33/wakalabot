@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import WakalaLogo from '../components/Wakalalogo'
 import remarkGfm from 'remark-gfm'
+import RefreshButton from '../components/RefreshButton'
 
 const API = import.meta.env.VITE_API_URL
 
@@ -599,6 +600,7 @@ export default function CustomerChat() {
   const [notice, setNotice] = useState(null)
   const [noticeRead, setNoticeRead] = useState(false)
 
+
   // ── Load directory ──────────────────────────────────────────────────────
   useEffect(() => {
     fetch(`${API}/api/v1/chat/directory`)
@@ -606,6 +608,9 @@ export default function CustomerChat() {
       .then(setDirectory)
       .catch(() => {})
   }, [])
+
+
+  
 
   // ── Load business from slug — happens regardless of auth ───────────────
   useEffect(() => {
@@ -905,6 +910,7 @@ export default function CustomerChat() {
               </div>
               <p className="text-gray-400 text-sm font-medium">Select a business to start chatting</p>
               <p className="text-gray-600 text-xs">Choose from the directory on the left</p>
+              <RefreshButton />
             </div>
           </div>
         ) : bizError ? (

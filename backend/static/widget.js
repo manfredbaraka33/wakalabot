@@ -19,9 +19,27 @@
   let messages = [];
   let rendered = false;
   let identity = JSON.parse(localStorage.getItem('wk_identity') || 'null');
+
+  // NEW FIX: Clear out old guest sessions from previous testing to prevent 422 errors
+  if (identity && identity.phone && identity.phone.startsWith('guest-')) {
+    identity = null;
+    localStorage.removeItem('wk_identity');
+  }
+
   let isOpen = false;
   let isLoading = false;
   let isAuthed = !!identity;
+
+  // ── Helper: Basic Markdown to HTML ─────────────────────────────────────────
+  function parseMarkdown(text) {
+    if (!text) return '';
+    let html = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(?:^|[^\\])_(.*?)_/g, '<em>$1</em>');
+    html = html.replace(/(?:^|[^\\])\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
 
   // ── CSS ───────────────────────────────────────────────────────────────────
   const css = `
@@ -116,7 +134,7 @@
     #wkb-gate {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 28px 24px; gap: 14px; text-align: center;
+      padding: 24px 24px; gap: 12px; text-align: center;
     }
     #wkb-gate-icon {
       width: 52px; height: 52px; border-radius: 50%;
@@ -124,21 +142,22 @@
       display: flex; align-items: center; justify-content: center;
     }
     #wkb-gate h3 { color: #f1f5f9; font-size: 16px; font-weight: 600; }
-    #wkb-gate p { color: #94a3b8; font-size: 13px; line-height: 1.5; }
-    #wkb-phone-input {
+    #wkb-gate p { color: #94a3b8; font-size: 13px; line-height: 1.5; margin-bottom: 4px; }
+    .wkb-field {
       width: 100%;
       background: #1e293b; border: 1.5px solid #334155;
-      border-radius: 12px; padding: 12px 14px;
+      border-radius: 14px; padding: 14px 16px;
       color: #f1f5f9; font-size: 14px; outline: none;
       transition: border-color 0.2s;
+      margin-bottom: 12px;
     }
-    #wkb-phone-input:focus { border-color: #6366f1; }
-    #wkb-phone-input::placeholder { color: #475569; }
+    .wkb-field:focus { border-color: #6366f1; }
+    .wkb-field::placeholder { color: #475569; }
     #wkb-gate-btn {
       width: 100%; background: #6366f1; border: none;
       border-radius: 12px; padding: 12px 16px;
       color: white; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: background 0.2s;
+      cursor: pointer; transition: background 0.2s; margin-top: 4px;
     }
     #wkb-gate-btn:hover { background: #4f46e5; }
     #wkb-messages {
@@ -154,9 +173,11 @@
     .wkb-row.wkb-u { align-self: flex-end; align-items: flex-end; }
     .wkb-row.wkb-b { align-self: flex-start; align-items: flex-start; }
     .wkb-bub {
-      padding: 12px 16px; border-radius: 16px;
-      font-size: 13px; line-height: 1.6; word-break: break-word;
+      padding: 16px 20px; border-radius: 16px;
+      font-size: 14px; line-height: 1.6; word-break: break-word;
     }
+    .wkb-bub strong { font-weight: 700; color: inherit; }
+    .wkb-bub em { font-style: italic; }
     .wkb-u .wkb-bub {
       background: #6366f1; color: white;
       border-bottom-right-radius: 4px;
@@ -203,7 +224,7 @@
       transition: border-color 0.2s;
     }
     #wkb-input:focus { border-color: #6366f1; }
-    #wkb-input::placeholder { color: #475569; }
+    #wkb-input::placeholder { color: #94a3b8; }
     #wkb-sendbtn {
       width: 40px; height: 40px; flex-shrink: 0;
       background: #6366f1; border: none;
@@ -215,26 +236,65 @@
     #wkb-sendbtn:disabled { opacity: 0.4; cursor: not-allowed; }
     #wkb-wm {
       text-align: center; padding: 5px 0 8px;
-      font-size: 10px; color: #334155; flex-shrink: 0;
+      font-size: 11px; color: #94a3b8; flex-shrink: 0;
     }
     #wkb-wm a { color: #6366f1; text-decoration: none; }
     @media (max-width: 420px) {
       #wkb-panel { 
         width: calc(100vw - 24px); 
-        height: 400px; /* Keeps its natural height if space permits */
-        max-height: calc(100vh - 80px); /* Strictly leaves 80px of clear space at the top edge */
+        height: 400px;
+        max-height: calc(100vh - 80px);
         border-radius: 14px; 
       }
       #wkb-root { ${SIDE === 'left' ? 'left: 12px' : 'right: 12px'}; bottom: 12px; }
     }
-
     #wkb-disclaimer {
         text-align: center;
-        font-size: 10px;
-        color: #334155;
+        font-size: 11px;
+        color: #94a3b8;
         padding: 4px 0 6px;
         flex-shrink: 0;
       }
+    #wkb-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #wkb-notice.wkb-notice-unread {
+      background: rgba(245, 158, 11, 0.1);
+      animation: wkb-noticepulse 2s infinite;
+    }
+    #wkb-notice.wkb-notice-read {
+      background: rgba(245, 158, 11, 0.04);
+    }
+    @keyframes wkb-noticepulse {
+      0%, 100% { background: rgba(245, 158, 11, 0.10); }
+      50% { background: rgba(245, 158, 11, 0.20); }
+    }
+    #wkb-notice-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; color: red; }
+    #wkb-notice-text {
+      flex: 1;
+      font-size: 11px;
+      color: #fcd34d;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    #wkb-notice-gotit {
+      flex-shrink: 0;
+      font-size: 9px;
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 4px;
+      padding: 2px 6px;
+      background: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #wkb-notice-gotit:hover { background: rgba(245, 158, 11, 0.15); }
   `;
 
   // ── Inject CSS ────────────────────────────────────────────────────────────
@@ -250,12 +310,11 @@
   const panel = document.createElement('div');
   panel.id = 'wkb-panel';
 
-  // Header
   panel.innerHTML = `
     <div id="wkb-header">
       <div id="wkb-avatar">?</div>
       <div id="wkb-hinfo">
-        <div id="wkb-bizname">Loading…</div>
+        <div id="wkb-bizname">Loading</div>
         <div id="wkb-online">AI Assistant Online</div>
       </div>
       <button id="wkb-closebtn" aria-label="Close">
@@ -267,10 +326,9 @@
       </button>
     </div>
     <div id="wkb-body"></div>
-    <div id="wkb-wm">Powered by <a href="https://wakalabot.co.tz" target="_blank">WakalaBot</a></div>
+    <div id="wkb-wm">Powered by <a href="https://wakalabot.co.tz" target="_blank">Wakalabot</a></div>
   `;
 
-  // Button
   const btn = document.createElement('button');
   btn.id = 'wkb-btn';
   btn.setAttribute('aria-label', 'Open chat');
@@ -314,7 +372,18 @@
     })
     .catch(() => {});
 
-  // ── Gate ──────────────────────────────────────────────────────────────────
+  // ── Load notice ───────────────────────────────────────────────────────────
+  let activeNotice = null;
+
+  fetch(`${API}/api/v1/chat/notice/${SLUG}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data?.notice) return;
+      activeNotice = data.notice;
+    })
+    .catch(() => {});
+
+  // ── Gate (Asks for Name + Phone) ──────────────────────────────────────────
   function renderGate() {
     const body = document.getElementById('wkb-body');
     body.innerHTML = `
@@ -324,30 +393,37 @@
             <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
           </svg>
         </div>
-        <h3>Jina lako ni nani?</h3>
-        <p>Ingiza jina lako ili msaidizi aweze kukujua. Hakuna password inayohitajika.</p>
-        <input id="wkb-phone-input" type="text" placeholder="e.g. Juma, Sarah..." maxlength="50"/>
+        <h3>Karibu Tunza Mazungumzo</h3>
+        <p>Tafadhali weka taarifa zako hapa chini kuanza kuongea nasi.</p>
+        <input id="wkb-name-input" class="wkb-field" type="text" placeholder="Jina lako (mfano. Juma, Sarah...)" maxlength="50"/>
+        <input id="wkb-phone-field" class="wkb-field" type="tel" placeholder="Namba ya simu (mfano. 07123...)" maxlength="15"/>
         <button id="wkb-gate-btn">Anza Mazungumzo</button>
       </div>
     `;
     setTimeout(() => {
-      const inp = document.getElementById('wkb-phone-input');
+      const nameInp = document.getElementById('wkb-name-input');
+      const phoneInp = document.getElementById('wkb-phone-field');
       const gbtn = document.getElementById('wkb-gate-btn');
-      if (inp) {
-        inp.focus();
-        inp.addEventListener('keydown', e => { if (e.key === 'Enter') handleNameSubmit(); });
+      
+      if (nameInp) nameInp.focus();
+      if (phoneInp) {
+        phoneInp.addEventListener('keydown', e => { if (e.key === 'Enter') handleGateSubmit(); });
       }
-      if (gbtn) gbtn.addEventListener('click', handleNameSubmit);
+      if (gbtn) gbtn.addEventListener('click', handleGateSubmit);
     }, 50);
   }
 
-  function handleNameSubmit() {
-    const inp = document.getElementById('wkb-phone-input');
-    const val = (inp ? inp.value : '').trim();
-    if (!val) return;
+  function handleGateSubmit() {
+    const nameInp = document.getElementById('wkb-name-input');
+    const phoneInp = document.getElementById('wkb-phone-field');
+    const nameVal = (nameInp ? nameInp.value : '').trim();
+    const phoneVal = (phoneInp ? phoneInp.value : '').trim();
+    
+    if (!nameVal || !phoneVal) return; 
+    
     identity = {
-      name: val,
-      phone: 'guest-' + Math.random().toString(36).slice(2) + Date.now(),
+      name: nameVal,
+      phone: phoneVal,
     };
     localStorage.setItem('wk_identity', JSON.stringify(identity));
     isAuthed = true;
@@ -355,128 +431,138 @@
   }
 
   // ── Chat ──────────────────────────────────────────────────────────────────
-function renderChat() {
-  const body = document.getElementById('wkb-body');
-  body.innerHTML = `
-    <div id="wkb-messages"></div>
-    <div id="wkb-inputarea">
-      <textarea id="wkb-input" placeholder="Andika ujumbe..." rows="1"></textarea>
-      <button id="wkb-sendbtn" aria-label="Send">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-        </svg>
-      </button>
-    </div>
-    <div id="wkb-disclaimer">WakalaBot inaweza kukosea. Thibitisha taarifa muhimu.</div>
-  `;
+  function renderChat() {
+    const body = document.getElementById('wkb-body');
 
-  // Load history first
-  loadHistory().then(() => {
-    if (messages.length === 0 && biz) {
-      messages.push({
-        role: 'assistant',
-        content: `Habari ${identity.name}! Karibu ${biz.biz_name}. Naweza kukusaidia nini leo?`,
-        image_url: null,
+    const noticeKey = activeNotice ? `wkb_notice_${SLUG}_${activeNotice.slice(0, 20)}` : null;
+    const noticeAlreadyRead = noticeKey ? !!localStorage.getItem(noticeKey) : true;
+    const noticeHtml = activeNotice ? `
+      <div id="wkb-notice" class="${noticeAlreadyRead ? 'wkb-notice-read' : 'wkb-notice-unread'}">
+        <span id="wkb-notice-icon">${noticeAlreadyRead ? '\u{1F4E2}' : '\u{26A0}'}</span>
+        <span id="wkb-notice-text">${activeNotice}</span>
+        ${!noticeAlreadyRead ? `<button id="wkb-notice-gotit">Got it</button>` : ''}
+      </div>
+    ` : '';
+
+    body.innerHTML = `
+      ${noticeHtml}
+      <div id="wkb-messages"></div>
+      <div id="wkb-inputarea">
+        <textarea id="wkb-input" placeholder="Andika ujumbe..." rows="1"></textarea>
+        <button id="wkb-sendbtn" aria-label="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+      <div id="wkb-disclaimer">Wakalabot inaweza kukosea. Thibitisha taarifa muhimu.</div>
+    `;
+
+    if (activeNotice && !noticeAlreadyRead) {
+      setTimeout(() => {
+        const gotitBtn = document.getElementById('wkb-notice-gotit');
+        const noticeEl = document.getElementById('wkb-notice');
+        const iconEl = document.getElementById('wkb-notice-icon');
+        if (gotitBtn && noticeEl && noticeKey) {
+          gotitBtn.addEventListener('click', () => {
+            localStorage.setItem(noticeKey, '1');
+            noticeEl.className = 'wkb-notice-read';
+            if (iconEl) iconEl.textContent = '\u{1F4E2}';
+            gotitBtn.remove();
+          });
+        }
+      }, 50);
+    }
+
+    loadHistory().then(() => {
+      if (messages.length === 0 && biz) {
+        messages.push({
+          role: 'assistant',
+          content: `Habari ${identity.name}! Karibu ${biz.biz_name}. Naweza kukusaidia nini leo?`,
+          image_url: null,
+        });
+      }
+      repaintMessages();
+    });
+
+    const inputEl = document.getElementById('wkb-input');
+    const sendEl = document.getElementById('wkb-sendbtn');
+    if (inputEl) {
+      inputEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+      });
+      inputEl.addEventListener('input', () => {
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 80) + 'px';
       });
     }
-    repaintMessages();
-  });
-
-  const inputEl = document.getElementById('wkb-input');
-  const sendEl = document.getElementById('wkb-sendbtn');
-  if (inputEl) {
-    inputEl.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
-    });
-    inputEl.addEventListener('input', () => {
-      inputEl.style.height = 'auto';
-      inputEl.style.height = Math.min(inputEl.scrollHeight, 80) + 'px';
-    });
+    if (sendEl) sendEl.addEventListener('click', doSend);
   }
-  if (sendEl) sendEl.addEventListener('click', doSend);
-}
 
-async function loadHistory() {
-  if (!identity || !SLUG) return;
-  try {
-    const res = await fetch(
-      `${API}/api/v1/chat/history/${SLUG}?customer_phone=${encodeURIComponent(identity.phone)}`
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.messages && data.messages.length > 0) {
-      messages = data.messages.map(m => ({
-        role: m.role,
-        content: m.content,
-        image_url: m.image_url || null,
-      }));
-    }
-  } catch {}
-}
-
-function repaintMessages() {
-  const area = document.getElementById('wkb-messages');
-  if (!area) return;
-  area.innerHTML = '';
-  messages.forEach(msg => {
-    const row = document.createElement('div');
-    row.className = `wkb-row ${msg.role === 'user' ? 'wkb-u' : 'wkb-b'}`;
-
-    if (msg.image_url) {
-      const img = document.createElement('img');
-      img.src = msg.image_url;
-      img.className = 'wkb-img';
-      img.alt = 'Product';
-      img.crossOrigin = 'anonymous';
-      img.style.maxWidth = '220px';
-      img.style.marginBottom = msg.content ? '6px' : '0';
-      img.onerror = () => { img.style.display = 'none'; };
-      row.appendChild(img);
+  async function loadHistory() {
+    if (!identity || !SLUG) return;
+    
+    // NEW FIX: Do not fetch history if the user was just an anonymous guest
+    if (identity.phone && identity.phone.startsWith('guest-')) {
+      return; 
     }
 
-    if (msg.content) {
-      const bub = document.createElement('div');
-      bub.className = 'wkb-bub';
-      bub.textContent = msg.content;
-      row.appendChild(bub);
-    }
-
-    if (msg.tools_used && msg.tools_used.length > 0) {
-      const toolsDiv = document.createElement('div');
-      toolsDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;';
-      const toolMap = {
-        get_product_catalog: '📦 Bidhaa',
-        get_service_catalog: '🛠️ Huduma',
-        get_product_by_name: '📦 Bidhaa',
-        get_service_by_name: '🛠️ Huduma',
-        get_shop_info: '🏪 Duka',
-        check_stock: '📊 Hifadhi',
-        search_knowledge_base: '🔍 Taarifa',
-        save_lead: '💾 Lead',
-        calculate_order_total: '🧮 Jumla',
-        search_web: '🌐 Mtandao',
-        fetch_business_website: '🌐 Tovuti',
-      };
-      msg.tools_used.forEach(tool => {
-        const badge = document.createElement('span');
-        badge.style.cssText = 'font-size:10px;background:rgba(99,102,241,0.1);color:#64748b;border-radius:999px;padding:2px 8px;';
-        badge.textContent = toolMap[tool] || tool;
-        toolsDiv.appendChild(badge);
-      });
-      row.appendChild(toolsDiv);
-    }
-
-    area.appendChild(row);
-  });
-
-  if (isLoading) {
-    const t = document.createElement('div');
-    t.id = 'wkb-typing';
-    t.innerHTML = '<div class="wkb-dot"></div><div class="wkb-dot"></div><div class="wkb-dot"></div>';
-    area.appendChild(t);
+    try {
+      const res = await fetch(
+        `${API}/api/v1/chat/history/${SLUG}?customer_phone=${encodeURIComponent(identity.phone)}`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.messages && data.messages.length > 0) {
+        messages = data.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+          image_url: m.image_url || null,
+        }));
+      }
+    } catch {}
   }
-  area.scrollTop = area.scrollHeight;
-}
+
+  function repaintMessages() {
+    const area = document.getElementById('wkb-messages');
+    if (!area) return;
+    area.innerHTML = '';
+    messages.forEach(msg => {
+      const row = document.createElement('div');
+      row.className = `wkb-row ${msg.role === 'user' ? 'wkb-u' : 'wkb-b'}`;
+
+     
+
+      if (msg.content) {
+        const bub = document.createElement('div');
+        bub.className = 'wkb-bub';
+        bub.innerHTML = parseMarkdown(msg.content);
+        row.appendChild(bub);
+      }
+
+       if (msg.image_url) {
+        const img = document.createElement('img');
+        img.src = msg.image_url;
+        img.className = 'wkb-img';
+        img.alt = 'Product';
+        img.crossOrigin = 'anonymous';
+        img.style.maxWidth = '220px';
+        img.style.marginBottom = msg.content ? '6px' : '0';
+        img.onerror = () => { img.style.display = 'none'; };
+        row.appendChild(img);
+      }
+
+      area.appendChild(row);
+    });
+
+    if (isLoading) {
+      const t = document.createElement('div');
+      t.id = 'wkb-typing';
+      t.innerHTML = '<div class="wkb-dot"></div><div class="wkb-dot"></div><div class="wkb-dot"></div>';
+      area.appendChild(t);
+    }
+    area.scrollTop = area.scrollHeight;
+  }
 
   async function doSend() {
     const inputEl = document.getElementById('wkb-input');
@@ -493,15 +579,15 @@ function repaintMessages() {
     repaintMessages();
 
     try {
-      const res = await fetch(`${API}/api/v1/chat/message`, {
+      const res = await fetch(`${API}/api/v1/chat/message/noauth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-        message: text,
-        customer_phone: identity.phone,
-        customer_name: identity.name,
-        tenant_slug: SLUG,
-      }),
+          message: text,
+          customer_phone: identity.phone,
+          customer_name: identity.name,
+          tenant_slug: SLUG,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -516,7 +602,7 @@ function repaintMessages() {
           role: 'assistant',
           content: data.reply,
           image_url: data.image_url || null,
-          tools_used: data.tools_used || [],
+          tools_used: data.tools_used || [], 
         });
       }
     } catch {
