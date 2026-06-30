@@ -33,6 +33,7 @@ class UserInfo(BaseModel):
     slug: Optional[str] = None
     is_verified: bool = False
     ai_mode: str = "eco"
+    logo_url: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):

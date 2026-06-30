@@ -845,8 +845,12 @@ export default function CustomerChat() {
                   key={biz.slug} onClick={() => selectBiz(biz)}
                   className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-800 transition-colors ${activeBiz?.slug === biz.slug ? 'bg-gray-800 border-r-2 border-indigo-500' : ''}`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 overflow-hidden">
+                    {biz.logo_url ? (
+                    <img src={biz.logo_url} alt={biz.biz_name} className="w-full h-full object-cover" />
+                  ) : (
                     <span className="text-indigo-400 text-xs font-bold">{biz.biz_name.charAt(0).toUpperCase()}</span>
+                  )}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 min-w-0">
@@ -927,7 +931,13 @@ export default function CustomerChat() {
                 </button>
               )}
               <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-                <span className="text-indigo-400 text-xs font-bold">{activeBiz.biz_name.charAt(0).toUpperCase()}</span>
+                <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center overflow-hidden">
+                  {activeBiz.logo_url ? (
+                    <img src={activeBiz.logo_url} alt={activeBiz.biz_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-indigo-400 text-xs font-bold">{activeBiz.biz_name.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-1.5">

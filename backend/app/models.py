@@ -62,6 +62,8 @@ class Tenant(Base):
     website_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     delivery_zones: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     business_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+
 
 
 class Wallet(Base):

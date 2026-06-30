@@ -368,7 +368,13 @@
       const nameEl = document.getElementById('wkb-bizname');
       const avatarEl = document.getElementById('wkb-avatar');
       if (nameEl) nameEl.textContent = biz.biz_name;
-      if (avatarEl) avatarEl.textContent = biz.biz_name.charAt(0).toUpperCase();
+      if (avatarEl) {
+        if (biz.logo_url) {
+          avatarEl.innerHTML = `<img src="${biz.logo_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="${biz.biz_name}" onerror="this.style.display='none'">`;
+        } else {
+          avatarEl.textContent = biz.biz_name.charAt(0).toUpperCase();
+        }
+      }
     })
     .catch(() => {});
 

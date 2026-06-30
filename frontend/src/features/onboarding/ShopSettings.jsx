@@ -4,7 +4,7 @@ import { z } from 'zod'
 import {
   Save, Loader2, Clock, MapPin, Phone, Link2, QrCode,
   Copy, Check, Zap, Brain, X, Code, Globe, Truck, FileText, Lock,
-  Bell,Trash2Icon
+  Bell,Trash2Icon,ImageIcon
 } from 'lucide-react'
 import { useState, useRef,useEffect } from 'react'
 import { useQuery, useQueryClient,useMutation } from '@tanstack/react-query'
@@ -61,15 +61,15 @@ function CoinMathModal({ onClose }) {
             <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
               <Zap className="w-4 h-4 text-yellow-400 shrink-0" />
               <div>
-                <p className="text-white text-xs font-semibold">Eco Mode (Llama 3.3 70B)</p>
-                <p className="text-gray-400 text-xs">≈ <span className="text-yellow-400 font-medium">1 coin</span> per average message</p>
+                <p className="text-white text-xs font-semibold">Eco Mode (gemini-3.1-flash-lite)</p>
+                <p className="text-gray-400 text-xs">≈ <span className="text-yellow-400 font-medium">3 coins</span> per average message</p>
               </div>
             </div>
             <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
               <Brain className="w-4 h-4 text-indigo-400 shrink-0" />
               <div>
-                <p className="text-white text-xs font-semibold">Smart Mode (Llama 4 Scout)</p>
-                <p className="text-gray-400 text-xs">≈ <span className="text-indigo-400 font-medium">3 coins</span> per average message</p>
+                <p className="text-white text-xs font-semibold">Smart Mode (gemini-3.5-flash)</p>
+                <p className="text-gray-400 text-xs">≈ <span className="text-indigo-400 font-medium">25 coins</span> per average message</p>
               </div>
             </div>
           </div>
@@ -94,7 +94,13 @@ export default function ShopSettings() {
   const qrRef = useRef(null)
 
   const [notice, setNotice] = useState('')
-const [noticeSaving, setNoticeSaving] = useState('idle')
+  const [noticeSaving, setNoticeSaving] = useState('idle')
+
+  const [logoFile, setLogoFile] = useState(null)
+  const [logoPreview, setLogoPreview] = useState(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef(null)
+
 
 const { data: noticeData } = useQuery({
   queryKey: ['shop-notice'],
@@ -227,6 +233,97 @@ useEffect(() => {
         <p className="text-sm text-gray-400 mt-1">
           Configure your AI agent with accurate business information.
         </p>
+      </div>
+
+      {/* Business Logo */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
+            <ImageIcon className="w-4 h-4 text-indigo-400" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-white">Business Logo</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Appears in chat headers and the widget. Square images work best.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div
+            onClick={() => logoInputRef.current?.click()}
+            className="w-20 h-20 rounded-2xl bg-gray-800 border-2 border-dashed border-gray-700 hover:border-indigo-500 flex items-center justify-center cursor-pointer overflow-hidden transition-colors shrink-0"
+          >
+            {(logoPreview || tenantData?.user?.logo_url) ? (
+              <img src={logoPreview || tenantData.user.logo_url} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <ImageIcon className="w-6 h-6 text-gray-600" />
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+            >
+              {tenantData?.user?.logo_url ? 'Change Logo' : 'Upload Logo'}
+            </button>
+            {tenantData?.user?.logo_url && (
+              <button
+                type="button"
+                // onClick={async () => {
+                //   await apiClient.delete('/api/v1/knowledge/shop-logo')
+                //   queryClient.invalidateQueries({ queryKey: ['tenant-info'] })
+                //   setLogoPreview(null)
+                // }}
+                onClick={async () => {
+                    try {
+                      await apiClient.delete('/api/v1/knowledge/shop-logo');
+                      queryClient.invalidateQueries({ queryKey: ['tenant-info'] });
+                      setLogoPreview(null);
+                    } catch (error) {
+                      // This will print exactly what FastAPI is complaining about!
+                      // console.error("FastAPI Error Detail:", error.response?.data); 
+                      alert("Logo upload failed")
+                    }
+                  }}
+                className="text-sm text-red-400 hover:text-red-300 font-medium block"
+              >
+                Remove Logo
+              </button>
+            )}
+            <p className="text-xs text-gray-600">JPEG, PNG or WebP. Max 5MB.</p>
+          </div>
+          {logoUploading && <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />}
+        </div>
+
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            if (file.size > 5 * 1024 * 1024) {
+              alert('Picha ni kubwa mno. Tafadhali chagua picha chini ya 5MB.')
+              return
+            }
+            setLogoPreview(URL.createObjectURL(file))
+            setLogoUploading(true)
+            const formData = new FormData()
+            formData.append('file', file)
+            try {
+              await apiClient.post('/api/v1/knowledge/shop-logo', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              })
+              queryClient.invalidateQueries({ queryKey: ['tenant-info'] })
+            } catch {
+              alert('Imeshindwa kupakia picha. Tafadhali jaribu tena.')
+              setLogoPreview(null)
+            } finally {
+              setLogoUploading(false)
+            }
+          }}
+        />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

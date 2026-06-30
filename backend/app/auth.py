@@ -100,6 +100,7 @@ def _build_token_response(tenant: Tenant) -> TokenResponse:
             slug=tenant.slug,
             is_verified=tenant.is_verified,
             ai_mode=tenant.ai_mode,
+            logo_url=tenant.logo_url,
         ),
     )
 

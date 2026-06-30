@@ -4,7 +4,7 @@ All operations are scoped to the authenticated tenant.
 """
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,49 @@ from app.services import ai_engine
 from app.models import Tenant as TenantModel
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
+
+
+
+
+import cloudinary.uploader
+
+@router.post("/shop-logo")
+async def upload_shop_logo(
+    file: UploadFile = File(...),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(status_code=400, detail="Picha lazima iwe JPEG, PNG, au WebP.")
+
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Picha ni kubwa mno. Tafadhali chagua picha chini ya 5MB.")
+
+    upload_result = cloudinary.uploader.upload(
+        contents,
+        folder=f"wakalabot/logos/{tenant.id}",
+        transformation=[{"width": 300, 
+                         "height": 300, 
+                         "crop": "pad", 
+                         "background": "auto"
+                         }],
+    )
+    tenant.logo_url = upload_result["secure_url"]
+    await db.commit()
+    return {"logo_url": tenant.logo_url}
+
+
+@router.delete("/shop-logo")
+async def remove_shop_logo(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    tenant.logo_url = None
+    await db.commit()
+    return {"logo_url": None}
+
+
 
 
 # ── GET /knowledge — list all entries for the tenant ──────────────────────────

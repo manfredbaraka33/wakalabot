@@ -60,6 +60,7 @@ class TenantPublicInfo(BaseModel):
     biz_name: str
     slug: str
     is_verified: bool = False
+    logo_url: Optional[str] = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -159,6 +160,7 @@ async def get_business_info(
         biz_name=tenant.biz_name,
         slug=tenant.slug,
         is_verified=tenant.is_verified,
+        logo_url=tenant.logo_url,
     )
 
 
@@ -175,6 +177,7 @@ async def get_business_directory(
             biz_name=t.biz_name,
             slug=t.slug,
             is_verified=t.is_verified,
+            logo_url=t.logo_url,
         )
         for t in tenants
     ]

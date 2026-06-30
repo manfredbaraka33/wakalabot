@@ -17,7 +17,7 @@ export default function Footer() {
               Empowering businesses with automated, high-speed customer service hubs.
             </p>
             <p className="text-xs text-gray-600">
-              © {new Date().getFullYear()} WakalaBot. All rights reserved.
+              © {new Date().getFullYear()} Wakalabot. All rights reserved.
             </p>
           </div>
 
