@@ -915,7 +915,7 @@ export default function CustomerChat() {
               <p className="text-gray-400 text-sm font-medium">Select a business to start chatting</p>
               <p className="text-gray-600 text-xs">Choose from the directory on the left</p>
               <RefreshButton /> <br />
-              <Link to='/login'>Ingia</Link>
+              <Link to='/' className='text-indigo-600'>Home</Link>
             </div>
           </div>
         ) : bizError ? (
