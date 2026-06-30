@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTheme } from '../hooks/useTheme'
 import ReactMarkdown from 'react-markdown'
 import {
@@ -914,7 +914,8 @@ export default function CustomerChat() {
               </div>
               <p className="text-gray-400 text-sm font-medium">Select a business to start chatting</p>
               <p className="text-gray-600 text-xs">Choose from the directory on the left</p>
-              <RefreshButton />
+              <RefreshButton /> <br />
+              <Link to='/login'>Ingia</Link>
             </div>
           </div>
         ) : bizError ? (
