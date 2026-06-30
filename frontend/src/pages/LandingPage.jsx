@@ -97,7 +97,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-400 leading-relaxed max-w-2xl mx-auto">
-            WakalaBot ni msaidizi wa AI anayejibu wateja wako kwa Kiswahili, anaonyesha bidhaa zako,
+            Wakalabot ni msaidizi wa AI anayejibu wateja wako kwa Kiswahili, anaonyesha bidhaa zako,
             anahifadhi lead, na kukutumia SMS pale mteja anapotaka kununua — hata wewe ukiwa busy
             au umelala.
           </p>
@@ -138,7 +138,7 @@ export default function LandingPage() {
           <div className="text-center space-y-3">
             <h2 className="text-3xl font-bold text-white">Kila kitu unachohitaji kuwahudumia wateja</h2>
             <p className="text-gray-400 max-w-xl mx-auto">
-              Kutoka chati ya AI mpaka arifa za SMS — WakalaBot inakupa zana zote za kuendesha
+              Kutoka chati ya AI mpaka arifa za SMS — Wakalabot inakupa zana zote za kuendesha
               huduma kwa wateja bila kuajiri mtu wa ziada.
             </p>
           </div>
