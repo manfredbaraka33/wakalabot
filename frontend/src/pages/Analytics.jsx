@@ -91,7 +91,7 @@ function TrendTooltip({ active, payload, label }) {
     <div className="rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 shadow-lg">
       <p className="text-xs text-gray-400">{formatDayLabel(label)}</p>
       <p className="mt-1 text-sm font-medium text-white">
-        {formatNumber(payload[0].value)} messages
+        Ujumbe {formatNumber(payload[0].value)}
       </p>
     </div>
   )
@@ -103,10 +103,10 @@ function EmptyState() {
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#6366f1]/12">
         <TrendingUp className="h-7 w-7 text-[#6366f1]" />
       </div>
-      <h2 className="mt-4 text-xl font-semibold text-white">Waiting for your first customers...</h2>
+      <h2 className="mt-4 text-xl font-semibold text-white">Tunasubiri wateja wako wa kwanza...</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm text-gray-400">
-        As soon as messages start coming in, this live dashboard will show daily volume,
-        response coverage, product interest, and your busiest hours.
+        Mara tu ujumbe utakapoanza kuingia, dashibodi hii itaonyesha idadi ya kila siku,
+        bidhaa zinazovutia, na masaa yako yenye shughuli nyingi.
       </p>
     </div>
   )
@@ -129,30 +129,30 @@ export default function Analytics() {
 
   const statCards = [
     {
-      label: 'Total Chats',
+      label: 'Mazungumzo Yote',
       value: formatNumber(stats?.total_chats ?? 0),
-      hint: 'Unique customer conversations tracked so far.',
+      hint: 'Mazungumzo tofauti ya wateja yaliyofuatiliwa hadi sasa.',
       icon: MessageSquareMore,
       tone: 'bg-[#6366f1]/15 text-[#6366f1]',
     },
     {
-      label: "Today's Messages",
+      label: 'Ujumbe wa Leo',
       value: formatNumber(stats?.active_today ?? 0),
-      hint: 'Messages received in the last 24 hours.',
+      hint: 'Ujumbe uliopokelewa katika masaa 24 yaliyopita.',
       icon: Activity,
       tone: 'bg-sky-500/15 text-sky-300',
     },
     {
-      label: 'Avg Messages / Chat',
+      label: 'Wastani wa Ujumbe / Mazungumzo',
       value: formatNumber(stats?.avg_messages_per_chat ?? 0),
-      hint: 'Average number of messages exchanged per conversation.',
+      hint: 'Wastani wa ujumbe unaobadilishana kwa kila mazungumzo.',
       icon: Bot,
       tone: 'bg-amber-500/15 text-amber-300',
     },
     {
-      label: 'Peak Hour',
+      label: 'Saa Yenye Shughuli Zaidi',
       value: peakHour?.count ? formatHourLabel(peakHour.hour) : '—',
-      hint: peakHour?.count ? `${formatNumber(peakHour.count)} messages at the busiest hour.` : 'Not enough data yet.',
+      hint: peakHour?.count ? `Ujumbe ${formatNumber(peakHour.count)} katika saa yenye shughuli zaidi.` : 'Bado hakuna takwimu za kutosha.',
       icon: Clock3,
       tone: 'bg-fuchsia-500/15 text-fuchsia-300',
     },
@@ -162,23 +162,23 @@ export default function Analytics() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Live Analytics</h1>
+          <h1 className="text-2xl font-bold text-white">Analytics za Moja kwa Moja</h1>
           <p className="mt-1 text-sm text-gray-400">
-            Track chat volume, product interest, and customer activity as new messages arrive.
+            Fuatilia idadi ya mazungumzo, bidhaa zinazovutia, na shughuli za wateja kadri ujumbe unavyoingia.
           </p>
         </div>
 
         <div className="flex items-center gap-3 self-start rounded-full border border-gray-800 bg-gray-900 px-3 py-2 text-xs text-gray-400">
           <span className="inline-flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${refreshing ? 'bg-amber-300' : 'bg-[#6366f1]'}`} />
-            {refreshing ? 'Refreshing live data...' : 'Auto-refresh every 15s'}
+            {refreshing ? 'Inasasisha...' : 'Inasasisha kila sekunde 15'}
           </span>
           <button
             onClick={reload}
             className="inline-flex items-center gap-1 rounded-full border border-gray-800 px-2.5 py-1 text-gray-300 transition-colors hover:border-gray-700 hover:text-white"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            Sasisha
           </button>
         </div>
       </div>
@@ -200,11 +200,11 @@ export default function Analytics() {
       ) : (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
           <Panel
-            title="7-Day Customer Inquiries"
-            subtitle="Daily customer messages (inbound only) across the last seven days."
+            title="Maswali ya Wateja — Siku 7"
+            subtitle="Ujumbe wa wateja kwa siku (unaoingia tu) katika siku saba zilizopita."
             action={
               <span className="rounded-full bg-gray-950 px-3 py-1 text-xs text-gray-500">
-                {formatNumber(totalMessages)} total messages
+                Ujumbe {formatNumber(totalMessages)} jumla
               </span>
             }
           >
@@ -242,11 +242,11 @@ export default function Analytics() {
 
           <div className="space-y-6">
             <Panel
-              title="Top Product Interest"
-              subtitle="Products customers mention most often in chat messages."
+              title="Bidhaa Zinazovutia Zaidi"
+              subtitle="Bidhaa zinazotajwa mara nyingi zaidi na wateja kwenye chati."
             >
               {topProducts.length === 0 ? (
-                <p className="text-sm text-gray-500">No product mentions detected yet.</p>
+                <p className="text-sm text-gray-500">Bado hakuna bidhaa zilizotajwa.</p>
               ) : (
                 <div className="space-y-3">
                   {topProducts.map((product, index) => {
@@ -274,8 +274,8 @@ export default function Analytics() {
             </Panel>
 
             <Panel
-              title="Peak Hours"
-              subtitle="The brighter the slot, the busier that hour is for your bot."
+              title="Masaa Yenye Shughuli Zaidi"
+              subtitle="Kadri rangi inavyong'aa, ndivyo saa hiyo ina shughuli zaidi kwa bot yako."
             >
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                 {peakHours.map((entry) => {

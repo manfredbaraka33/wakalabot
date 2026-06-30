@@ -33,7 +33,7 @@ function KBModal({ entry, onClose, onSave, isSaving }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">
-              Knowledge Content
+              Maudhui/taarifa
             </label>
             <textarea
               autoFocus
@@ -89,9 +89,9 @@ function DeleteModal({ onClose, onConfirm, isDeleting }) {
             <Trash2 className="w-5 h-5 text-red-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">Delete entry?</p>
+            <p className="text-sm font-semibold text-white">Futa taarifa?</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              This will remove it from the AI's knowledge. This cannot be undone.
+             Hii itaondoa taarifa hii kwenye ufahamu wa AI.
             </p>
           </div>
         </div>
@@ -100,7 +100,7 @@ function DeleteModal({ onClose, onConfirm, isDeleting }) {
             onClick={onClose}
             className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
           >
-            Cancel
+            Ghairi
           </button>
           <button
             onClick={onConfirm}
@@ -108,7 +108,7 @@ function DeleteModal({ onClose, onConfirm, isDeleting }) {
             className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-60 transition-colors"
           >
             {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Delete
+            Futa
           </button>
         </div>
       </div>
@@ -171,9 +171,9 @@ export default function KnowledgeBaseManager() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Knowledge Base</h1>
+          <h1 className="text-2xl font-bold text-white">Maudhui ya Biashara</h1>
           <p className="text-sm text-gray-400 mt-1">
-            Everything you add here is used by your AI bot to answer customer questions.
+            Kila kitu unachoweka hapa kinatumiwa na bot yako ya AI kujibu maswali ya wateja.
           </p>
         </div>
         <button
@@ -181,7 +181,7 @@ export default function KnowledgeBaseManager() {
           className="inline-flex items-center gap-2 rounded-lg bg-[#6366f1] px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-[#20bd59] transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" />
-          Add Entry
+          Weka taarifa
         </button>
       </div>
 
@@ -189,13 +189,13 @@ export default function KnowledgeBaseManager() {
       {isLoading && (
         <div className="flex items-center justify-center py-16 text-gray-500">
           <Loader2 className="w-6 h-6 animate-spin mr-2" />
-          Loading knowledge base…
+          Inapakia maudhui…
         </div>
       )}
 
       {isError && (
         <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4 text-sm text-red-400">
-          Failed to load knowledge base. Please refresh.
+          Imeshindwa kupakia maudhui. Tafadhari refresh.
         </div>
       )}
 
@@ -204,16 +204,16 @@ export default function KnowledgeBaseManager() {
           <div className="w-14 h-14 rounded-2xl bg-gray-800 flex items-center justify-center mb-4">
             <BookOpen className="w-7 h-7 text-gray-600" />
           </div>
-          <p className="text-sm font-medium text-gray-400">No knowledge entries yet</p>
+          <p className="text-sm font-medium text-gray-400">Bado hakuna taarifa iliyowekwa</p>
           <p className="text-xs text-gray-600 mt-1">
-            Add your first entry to start training your AI bot.
+            Weka taarifa yako ya kwanza ili kuanza kuifundisha bot yako ya AI.
           </p>
           <button
             onClick={() => setEditTarget({})}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#6366f1]/15 border border-[#6366f1]/30 px-4 py-2 text-sm font-medium text-[#6366f1] hover:bg-[#6366f1]/25 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Add your first entry
+            Weka taarifa yako ya kwanza
           </button>
         </div>
       )}

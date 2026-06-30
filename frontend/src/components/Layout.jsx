@@ -26,14 +26,14 @@ import { useTheme } from '../hooks/useTheme'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/knowledge', label: 'Knowledge Base', icon: BookOpen },
-  { to: '/dashboard/products', label: 'Products & Services', icon: Package },
-  { to: '/dashboard/settings', label: 'Shop Settings', icon: Settings },
-  { to: '/dashboard/conversations', label: 'Conversations', icon: MessageSquare },
-  { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/dashboard/billing', label: 'Billing & Wallet', icon: Coins },
+  { to: '/dashboard/knowledge', label: 'Maudhui ya Biashara', icon: BookOpen },
+  { to: '/dashboard/products', label: 'Bidhaa na Huduma', icon: Package },
+  { to: '/dashboard/settings', label: 'Mipangilio ya Biashara', icon: Settings },
+  { to: '/dashboard/conversations', label: 'Maongezi', icon: MessageSquare },
+  { to: '/dashboard/analytics', label: 'Uchambuzi na Takwimu', icon: BarChart3 },
+  { to: '/dashboard/billing', label: 'Bili', icon: Coins },
   { to: '/dashboard/leads', label: 'Leads', icon: FlameIcon },
-  { to: '/dashboard/support', label: 'Support', icon: Ticket },
+  { to: '/dashboard/support', label: 'Msaada', icon: Ticket },
   // { to: '/dashboard/unanswered', label: 'Maswali Bila Majibu', icon: HelpCircle }
 ]
 
@@ -236,7 +236,7 @@ export default function Layout() {
           >
             {collapsed
               ? <ChevronRight className="w-4 h-4" />
-              : <><ChevronLeft className="w-4 h-4" /><span>Collapse</span></>
+              : <><ChevronLeft className="w-4 h-4" /><span>Funga</span></>
             }
           </button>
 
@@ -248,7 +248,7 @@ export default function Layout() {
             }`}
           >
             <LogOut className="w-4 h-4" />
-            {!collapsed && 'Logout'}
+            {!collapsed && 'Toka'}
           </button>
         </div>
       </aside>

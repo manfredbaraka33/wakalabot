@@ -65,7 +65,7 @@ function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4 shrink-0">
           <h3 className="text-base font-semibold text-white">
-            {isNew ? 'Add Product' : 'Edit Product'}
+            {isNew ? 'Ongeza Bidhaa' : 'Hariri Bidhaa'}
           </h3>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
             <X className="w-5 h-5" />
@@ -81,13 +81,13 @@ function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
               onChange={(e) => set('category', e.target.value)}
               className={inputCls}
             >
-              <option value="product">📦 Physical Product</option>
-              <option value="service">🛠️ Service (No Inventory Tracking)</option>
+              <option value="product">Bidhaa</option>
+              <option value="service">Huduma</option>
             </select>
           </div>
           
           <div>
-            <label className={labelCls}>Product/Service Name *</label>
+            <label className={labelCls}>Jina la bidhaa/huduma *</label>
             <input
               required
               value={form.name}
@@ -103,7 +103,7 @@ function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               rows={3}
-              placeholder="Brief description of the product…"
+              placeholder="Maelezo muhimu kuhusu bidhaa au huduma...."
               className={`${inputCls} resize-none`}
             />
           </div>
@@ -124,10 +124,10 @@ function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
               />
             </div>
             <div>
-              <label className={labelCls}>Stock Quantity *</label>
+              <label className={labelCls}>Kiwango(idadi ya bidhaa zilizopo/zinazopatikana) *</label>
               {form.category === 'service' ? (
                 <div className="w-full rounded-lg bg-gray-800/50 border border-gray-700/50 px-3 py-2 text-sm text-gray-500 select-none">
-                  Not Applicable
+                  Hahiitajiki
                 </div>
               ) : (
                 <input
@@ -145,7 +145,7 @@ function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
           </div>
 
           <div>
-            <label className={labelCls}>Product Image (optional)</label>
+            <label className={labelCls}>Picha (hiari)</label>
             {/* Preview */}
             {imagePreview && (
               <div className="relative mb-2 w-full h-40 rounded-lg overflow-hidden bg-gray-800 border border-gray-700">
@@ -226,7 +226,7 @@ function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
             onClick={onClose}
             className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
           >
-            Cancel
+            Ghairi
           </button>
           <button
             type="submit"
@@ -237,7 +237,7 @@ function ProductModal({ product, onClose, onSave, isSaving,errorMessage }) {
             {isSaving ? (
               <><Loader2 className="w-4 h-4 animate-spin" />{isNew ? 'Saving…' : 'Updating…'}</>
             ) : (
-              <><Check className="w-4 h-4" />{isNew ? 'Save Product/Service' : 'Update Product/Service'}</>
+              <><Check className="w-4 h-4" />{isNew ? 'Save' : 'Update'}</>
             )}
           </button>
         </div>
@@ -312,9 +312,9 @@ function DeleteModal({ name, onClose, onConfirm, isDeleting }) {
             <Trash2 className="w-5 h-5 text-red-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">Delete "{name}"?</p>
+            <p className="text-sm font-semibold text-white">Futa "{name}"?</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              This also removes its AI embedding. Cannot be undone.
+              Itaondolewa kwenye Maudhui ya biashara(Knowledge base)
             </p>
           </div>
         </div>
@@ -323,7 +323,7 @@ function DeleteModal({ name, onClose, onConfirm, isDeleting }) {
             onClick={onClose}
             className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
           >
-            Cancel
+            Ghairi
           </button>
           <button
             onClick={onConfirm}
@@ -331,7 +331,7 @@ function DeleteModal({ name, onClose, onConfirm, isDeleting }) {
             className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-60 transition-colors"
           >
             {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Delete
+            Futa
           </button>
         </div>
       </div>
@@ -411,9 +411,9 @@ export default function Products() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Products & Services</h1>
+          <h1 className="text-2xl font-bold text-white">Bidhaa na Huduma</h1>
           <p className="text-sm text-gray-400 mt-1">
-            Products and services are synced to the AI — it knows prices and stock levels in real time.
+            Bidhaa na huduma zimeanishwa na mfumo wa AI, hivyo inajua bei na idadi ya vitu vilivyopo kwa wakati halisi.
           </p>
         </div>
         <button
@@ -421,7 +421,7 @@ export default function Products() {
           className="inline-flex items-center gap-2 rounded-lg bg-[#6366f1] px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-[#20bd59] transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" />
-          Add Product or Service
+          Ongeza bidhaa au huduma
         </button>
       </div>
 
@@ -433,7 +433,7 @@ export default function Products() {
 
       {isError && (
         <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4 text-sm text-red-400">
-          Failed to load products. Please refresh.
+          Imeshindwa kupakia bidhaa/huduma..jaribu kurefresh
         </div>
       )}
 
@@ -442,13 +442,13 @@ export default function Products() {
           <div className="w-14 h-14 rounded-2xl bg-gray-800 flex items-center justify-center mb-4">
             <Package className="w-7 h-7 text-gray-600" />
           </div>
-          <p className="text-sm font-medium text-gray-400">No products or services yet</p>
-          <p className="text-xs text-gray-600 mt-1">Add your first product or service to start managing inventory.</p>
+          <p className="text-sm font-medium text-gray-400">Bado hakuna bidhaa/huduma zilizowekwa</p>
+          <p className="text-xs text-gray-600 mt-1">Ongeza bidhaa au huduma yako ya kwanza ili kuanza kusimamia orodha ya bidhaa zako.</p>
           <button
             onClick={() => setEditTarget({})}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#6366f1]/15 border border-[#6366f1]/30 px-4 py-2 text-sm font-medium text-[#6366f1] hover:bg-[#6366f1]/25 transition-colors"
           >
-            <Plus className="w-4 h-4" /> Add first product or service
+            <Plus className="w-4 h-4" /> Ongeza bidhaa/huduma
           </button>
         </div>
       )}
@@ -459,13 +459,13 @@ export default function Products() {
             <thead>
               <tr className="border-b border-gray-800 bg-gray-900">
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product/Service
+                  Bidhaa/Huduma
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
+                  Bei
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock
+                  Kiwango/idadi
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -520,7 +520,7 @@ export default function Products() {
                   <td className="px-4 py-3">
                     {p.category === 'service' ? (
                       <span className="text-xs text-gray-500 italic select-none">
-                        Not Applicable
+                        Haihitajiki
                       </span>
                     ) : (
                       <StockCell

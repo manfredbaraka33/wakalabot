@@ -20,3 +20,5 @@ cloudinary
 passlib[bcrypt]
 google_genai
 slowapi
+qrcode[pil]
+reportlab

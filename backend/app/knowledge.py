@@ -322,3 +322,101 @@ async def set_shop_notice(
     await db.commit()
     return {"notice": text}
 
+
+
+import io
+import httpx
+import qrcode
+from PIL import Image, ImageDraw
+from reportlab.lib.pagesizes import A6
+from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
+from fastapi.responses import StreamingResponse
+
+
+@router.get("/qr-pdf")
+async def generate_qr_pdf(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    if not tenant.slug:
+        raise HTTPException(status_code=400, detail="Tenant has no slug configured.")
+
+    chat_link = f"https://wakalabot.co.tz/chat/{tenant.slug}"
+
+    # ── Build QR code with high error correction (allows logo overlay) ──────
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=2)
+    qr.add_data(chat_link)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="#1e1b4b", back_color="white").convert("RGBA")
+
+    # ── Embed logo at center if available ────────────────────────────────────
+    if tenant.logo_url:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(tenant.logo_url)
+                logo = Image.open(io.BytesIO(resp.content)).convert("RGBA")
+
+            qr_w, qr_h = qr_img.size
+            logo_size = int(qr_w * 0.22)
+            logo = logo.resize((logo_size, logo_size))
+
+            # White circular backing so logo stands out from QR pattern
+            pad = 16
+            backing_size = logo_size + pad
+            mask = Image.new("L", (backing_size, backing_size), 0)
+            ImageDraw.Draw(mask).ellipse((0, 0, backing_size, backing_size), fill=255)
+            backing = Image.new("RGBA", (backing_size, backing_size), "white")
+            backing.putalpha(mask)
+
+            center = ((qr_w - backing_size) // 2, (qr_h - backing_size) // 2)
+            qr_img.paste(backing, center, backing)
+            logo_pos = (center[0] + pad // 2, center[1] + pad // 2)
+            qr_img.paste(logo, logo_pos, logo)
+        except Exception:
+            pass  # logo fetch failed — ship plain QR rather than error out
+
+    qr_buf = io.BytesIO()
+    qr_img.save(qr_buf, format="PNG")
+    qr_buf.seek(0)
+
+    # ── Compose into a print-ready PDF ───────────────────────────────────────
+    pdf_buf = io.BytesIO()
+    width, height = A6  # ~105mm x 148mm, postcard-sized — easy to print and stick at counter
+    c = canvas.Canvas(pdf_buf, pagesize=A6)
+
+    c.setFillColorRGB(1, 1, 1)
+    c.rect(0, 0, width, height, fill=1, stroke=0)
+
+    biz_name = tenant.biz_name[:32]
+    c.setFont("Helvetica-Bold", 16)
+    c.setFillColorRGB(0.12, 0.11, 0.29)
+    c.drawCentredString(width / 2, height - 22 * mm, biz_name)
+
+    qr_size = 65 * mm
+    qr_x = (width - qr_size) / 2
+    qr_y = height / 2 - qr_size / 2 + 6 * mm
+    c.drawImage(ImageReader(qr_buf), qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
+
+    c.setFont("Helvetica-Bold", 13)
+    c.setFillColorRGB(0.39, 0.40, 0.95)
+    c.drawCentredString(width / 2, qr_y - 11 * mm, f"Scan hapa kuchati na {biz_name}")
+
+    c.setFont("Helvetica", 8)
+    c.setFillColorRGB(0.45, 0.45, 0.45)
+    c.drawCentredString(width / 2, qr_y - 17 * mm, "Tunajibu papo hapo, muda wowote")
+
+    c.setFont("Helvetica", 7)
+    c.setFillColorRGB(0.6, 0.6, 0.6)
+    c.drawCentredString(width / 2, 8 * mm, "Powered by Wakalabot")
+
+    c.showPage()
+    c.save()
+    pdf_buf.seek(0)
+
+    return StreamingResponse(
+        pdf_buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={tenant.slug}-qrcode.pdf"},
+    )

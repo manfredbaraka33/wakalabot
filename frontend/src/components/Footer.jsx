@@ -12,12 +12,12 @@ export default function Footer() {
           <div className="space-y-3">
             <WakalaLogo />
             <p className="text-sm text-gray-400 leading-relaxed">
-              AI-Native Solutions from Tanzania.
+              Mifumo thabiti ya AI kutoka Tanzania.
               <br />
-              Empowering businesses with automated, high-speed customer service hubs.
+              Tunaziwezesha biashara kwa mifumo ya huduma kwa wateja ya kujiendesha na yenye kasi kubwa.
             </p>
             <p className="text-xs text-gray-600">
-              © {new Date().getFullYear()} Wakalabot. All rights reserved.
+              © {new Date().getFullYear()} Wakalabot. Haki zote zimehifadhiwa.
             </p>
           </div>
 
@@ -32,7 +32,7 @@ export default function Footer() {
                   to="/terms"
                   className="text-sm text-gray-400 hover:text-indigo-400 transition-colors"
                 >
-                  Terms of Service
+                  Terms of Service(Masharti ya Huduma)
                 </Link>
               </li>
               <li>
@@ -40,16 +40,15 @@ export default function Footer() {
                   to="/privacy"
                   className="text-sm text-gray-400 hover:text-indigo-400 transition-colors"
                 >
-                  Privacy Policy
+                  Privacy Policy(Sera ya faragha)
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/dashboard/support"
-                  className="text-sm text-gray-400 hover:text-indigo-400 transition-colors"
-                >
-                  Contact Support
-                </Link>
+              <li className="text-sm text-gray-400 hover:text-indigo-400 transition-colors">
+                
+                  Contact Us
+                  <p>WhatsApp: +255 712 750 468</p>
+                  <p>Email: info@wakalabot.co.tz</p>
+              
               </li>
             </ul>
           </div>

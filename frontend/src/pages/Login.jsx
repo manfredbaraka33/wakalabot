@@ -51,12 +51,12 @@ export default function Login() {
             <WakalaLogo />
 
           </Link>
-          <p className="text-sm text-gray-400">Smart business management platform</p>
+          <p className="text-sm text-gray-400">Jukwaa mahiri la kuendesha biashara yako</p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
-          <h1 className="text-xl font-semibold text-white mb-1">Welcome back</h1>
-          <p className="text-sm text-gray-400 mb-6">Sign in to your dashboard</p>
+          <h1 className="text-xl font-semibold text-white mb-1">Karibu tena</h1>
+          <p className="text-sm text-gray-400 mb-6">Ingia kwenye dashibodi yako</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
@@ -108,14 +108,14 @@ export default function Login() {
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 px-4 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer"
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              Sign In
+              Ingia
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-500">
-            Don&apos;t have an account?{' '}
+            Hauna akaunti?{' '}
             <Link to="/register" className="text-indigo-400 hover:underline font-medium">
-              Create one
+              Tengeneza akaunti
             </Link>
           </p>
         </div>

@@ -149,7 +149,7 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
     if tenant.phone:
         await send_sms(
             tenant.phone,
-            f"Hongera {tenant.biz_name}! Akaunti yako ya WakalaBot imeundwa.\n"
+            f"Hongera {tenant.biz_name}! Akaunti yako ya Wakalabot imeundwa.\n"
             f"Link ya wateja: {chat_link}\n"
             f"Dashibodi: {dashboard_link}"
         )

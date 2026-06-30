@@ -4,16 +4,16 @@ import { Ticket, CheckCircle, Clock, AlertCircle, Send, ChevronDown } from 'luci
 import { submitTicket, getMyTickets } from '../api/support'
 
 const CATEGORIES = [
-  { value: 'billing', label: 'Billing & Payments' },
-  { value: 'technical', label: 'Technical Issue' },
-  { value: 'feature_request', label: 'Feature Request' },
-  { value: 'general', label: 'General Enquiry' },
+  { value: 'billing', label: 'Malipo' },
+  { value: 'technical', label: 'Tatizo la Kiufundi' },
+  { value: 'feature_request', label: 'Ombi la Feature' },
+  { value: 'general', label: 'Swali la Kawaida' },
 ]
 
 const STATUS_CONFIG = {
-  pending: { label: 'Pending', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', icon: Clock },
-  in_progress: { label: 'In Progress', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20', icon: AlertCircle },
-  resolved: { label: 'Resolved', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle },
+  pending: { label: 'Inasubiri', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', icon: Clock },
+  in_progress: { label: 'Inashughulikiwa', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20', icon: AlertCircle },
+  resolved: { label: 'Imetatuliwa', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle },
 }
 
 function StatusBadge({ status }) {
@@ -58,38 +58,38 @@ export default function Support() {
       <div>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
           <Ticket className="w-6 h-6 text-[#6366f1]" />
-          Contact Support
+          Wasiliana na Support
         </h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Submit a ticket and our team will get back to you as soon as possible.
+          Tuma ticket na timu yetu itakujibu haraka iwezekanavyo.
         </p>
       </div>
 
       {/* Submission form */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-2xl">
-        <h2 className="text-lg font-semibold text-white mb-5">New Ticket</h2>
+        <h2 className="text-lg font-semibold text-white mb-5">Ticket Mpya</h2>
 
         {submitted && (
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-emerald-400 text-sm">
             <CheckCircle className="w-4 h-4 shrink-0" />
-            Ticket submitted! We'll respond within 24 hours.
+            Ticket imetumwa! Tutakujibu ndani ya masaa 24.
           </div>
         )}
 
         {isError && (
           <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-red-400 text-sm">
-            {error?.response?.data?.detail || 'Failed to submit ticket. Please try again.'}
+            {error?.response?.data?.detail || 'Imeshindwa kutuma ticket. Tafadhali jaribu tena.'}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Subject</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Kichwa cha Habari</label>
             <input
               type="text"
               value={form.subject}
               onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
-              placeholder="Brief description of the issue"
+              placeholder="Maelezo mafupi ya tatizo"
               maxLength={255}
               required
               className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#6366f1] focus:outline-none focus:ring-1 focus:ring-[#6366f1]"
@@ -97,7 +97,7 @@ export default function Support() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Category</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Aina</label>
             <div className="relative">
               <select
                 value={form.category}
@@ -113,18 +113,18 @@ export default function Support() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Message</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Ujumbe</label>
             <textarea
               value={form.message}
               onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
-              placeholder="Describe your issue or question in detail..."
+              placeholder="Eleza tatizo au swali lako kwa undani..."
               rows={5}
               minLength={10}
               maxLength={5000}
               required
               className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#6366f1] focus:outline-none focus:ring-1 focus:ring-[#6366f1] resize-none"
             />
-            <p className="text-xs text-gray-600 mt-1 text-right">{form.message.length}/5000</p>
+            <p className="text-xs text-gray-600 mt-1 text-right">herufi {form.message.length}/5000</p>
           </div>
 
           <button
@@ -133,20 +133,20 @@ export default function Support() {
             className="flex items-center gap-2 rounded-lg bg-[#6366f1] hover:bg-[#20bd5a] disabled:opacity-50 px-5 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer"
           >
             <Send className="w-4 h-4" />
-            {isPending ? 'Submitting…' : 'Submit Ticket'}
+            {isPending ? 'Inatuma…' : 'Tuma Ticket'}
           </button>
         </form>
       </div>
 
       {/* Ticket history */}
       <div className="max-w-2xl">
-        <h2 className="text-lg font-semibold text-white mb-4">My Tickets</h2>
+        <h2 className="text-lg font-semibold text-white mb-4">Ticket Zangu</h2>
 
         {isLoading ? (
-          <div className="text-gray-500 text-sm">Loading tickets…</div>
+          <div className="text-gray-500 text-sm">Inapakia ticket…</div>
         ) : !ticketsData?.length ? (
           <div className="rounded-xl border border-gray-800 bg-gray-900 px-6 py-10 text-center text-gray-500 text-sm">
-            No tickets yet. Submit one above if you need help.
+            Bado hakuna ticket. Tuma moja hapo juu kama unahitaji msaada.
           </div>
         ) : (
           <div className="space-y-3">
@@ -162,7 +162,7 @@ export default function Support() {
                 <p className="text-xs text-gray-500 capitalize">{t.category.replace('_', ' ')} · {new Date(t.created_at).toLocaleDateString()}</p>
                 {t.admin_reply && (
                   <div className="mt-2 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2">
-                    <p className="text-xs font-semibold text-[#6366f1] mb-1">Support Reply</p>
+                    <p className="text-xs font-semibold text-[#6366f1] mb-1">Jibu la Support</p>
                     <p className="text-sm text-gray-300">{t.admin_reply}</p>
                   </div>
                 )}

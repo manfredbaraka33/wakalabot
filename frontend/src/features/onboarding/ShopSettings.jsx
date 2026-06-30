@@ -46,36 +46,36 @@ function CoinMathModal({ onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
-          <h3 className="text-base font-semibold text-white">How coins are calculated</h3>
+          <h3 className="text-base font-semibold text-white">Coins zinakokotolewaje</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-6 space-y-4 text-sm text-gray-300">
-          <p>Coins are deducted based on exact tokens used per AI call.</p>
+          <p>Coins zinatolewa kulingana na tokens halisi zinazotumika kwa kila simu ya AI.</p>
           <div className="bg-gray-800 rounded-lg p-4 space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">1 average message =</p>
-            <p>Up to <span className="text-white font-semibold">100 words total</span> — customer input + AI reply.</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Ujumbe 1 wa wastani =</p>
+            <p>Hadi <span className="text-white font-semibold">maneno 100 jumla</span> — swali la mteja + jibu la AI.</p>
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
               <Zap className="w-4 h-4 text-yellow-400 shrink-0" />
               <div>
                 <p className="text-white text-xs font-semibold">Eco Mode (gemini-3.1-flash-lite)</p>
-                <p className="text-gray-400 text-xs">≈ <span className="text-yellow-400 font-medium">3 coins</span> per average message</p>
+                <p className="text-gray-400 text-xs">≈ <span className="text-yellow-400 font-medium">coins 3</span> kwa ujumbe wa wastani</p>
               </div>
             </div>
             <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
               <Brain className="w-4 h-4 text-indigo-400 shrink-0" />
               <div>
                 <p className="text-white text-xs font-semibold">Smart Mode (gemini-3.5-flash)</p>
-                <p className="text-gray-400 text-xs">≈ <span className="text-indigo-400 font-medium">25 coins</span> per average message</p>
+                <p className="text-gray-400 text-xs">≈ <span className="text-indigo-400 font-medium">coins 25</span> kwa ujumbe wa wastani</p>
               </div>
             </div>
           </div>
           <p className="text-xs text-gray-500 border-t border-gray-800 pt-3">
-            Note: if you have an active monthly subscription, your AI model is fixed by your plan
-            and coin deduction does not apply until your monthly message allowance is used up.
+            Kumbuka: kama una subscription inayoendelea, AI model yako imewekwa kulingana na mpango wako
+            na coins hazitolewi mpaka mazungumzo ya mwezi yatakapoisha.
           </p>
         </div>
       </div>
@@ -190,7 +190,7 @@ useEffect(() => {
       if (previousData) {
         queryClient.setQueryData(['tenant-info'], previousData)
       }
-      alert('Failed to update AI model. Please try again.')
+      alert('Imeshindwa kubadilisha AI model. Tafadhali jaribu tena.')
     } finally {
       setAiModeSaving(false)
     }
@@ -209,38 +209,19 @@ useEffect(() => {
 
 
 
-  function handleDownloadQR() {
-    const svg = qrRef.current?.querySelector('svg')
-    if (!svg) return
-
-    // 1. Clone the SVG so we don't alter the one currently displaying on your website
-    const clonedSvg = svg.cloneNode(true)
-
-    // 2. Grab the current width and height to build a viewBox (if it's missing)
-    const currentWidth = clonedSvg.getAttribute('width') || '256'
-    const currentHeight = clonedSvg.getAttribute('height') || '256'
-    if (!clonedSvg.getAttribute('viewBox')) {
-      clonedSvg.setAttribute('viewBox', `0 0 ${currentWidth} ${currentHeight}`)
-    }
-
-    // 3. Force the SVG canvas to be 100% of the window and center the contents
-    clonedSvg.setAttribute('width', '100%')
-    clonedSvg.setAttribute('height', '100%')
-    clonedSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
-
-
-    // 4. Convert to string and download
-    const svgData = new XMLSerializer().serializeToString(clonedSvg)
-    const blob = new Blob([svgData], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
+ async function handleDownloadQR() {
+  try {
+    const res = await apiClient.get('/api/v1/knowledge/qr-pdf', { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = `${slug}-qrcode.svg`
+    a.download = `${slug}-qrcode.pdf`
     a.click()
     URL.revokeObjectURL(url)
+  } catch {
+    alert('Imeshindwa kutengeneza QR. Tafadhali jaribu tena.')
   }
-
-
+}
 
  
 
@@ -249,16 +230,16 @@ useEffect(() => {
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-16 text-gray-500">
-      <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading...
+      <Loader2 className="w-5 h-5 animate-spin mr-2" /> Inapakia...
     </div>
   )
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Shop Settings</h1>
+        <h1 className="text-2xl font-bold text-white">Mipangilio ya Duka</h1>
         <p className="text-sm text-gray-400 mt-1">
-          Configure your AI agent with accurate business information.
+          Weka taarifa sahihi za biashara yako ili AI yako ifanye kazi vizuri.
         </p>
       </div>
 
@@ -269,8 +250,8 @@ useEffect(() => {
             <ImageIcon className="w-4 h-4 text-indigo-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-white">Business Logo</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Appears in chat headers and the widget. Square images work best.</p>
+            <h2 className="text-base font-semibold text-white">Logo ya Biashara</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Inaonekana kwenye chati na widget. Picha za square (mraba) ni bora zaidi.</p>
           </div>
         </div>
 
@@ -291,33 +272,27 @@ useEffect(() => {
               onClick={() => logoInputRef.current?.click()}
               className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
             >
-              {tenantData?.user?.logo_url ? 'Change Logo' : 'Upload Logo'}
+              {tenantData?.user?.logo_url ? 'Badilisha Logo' : 'Pakia Logo'}
             </button>
             {tenantData?.user?.logo_url && (
               <button
                 type="button"
-                // onClick={async () => {
-                //   await apiClient.delete('/api/v1/knowledge/shop-logo')
-                //   queryClient.invalidateQueries({ queryKey: ['tenant-info'] })
-                //   setLogoPreview(null)
-                // }}
+              
                 onClick={async () => {
                     try {
                       await apiClient.delete('/api/v1/knowledge/shop-logo');
                       queryClient.invalidateQueries({ queryKey: ['tenant-info'] });
                       setLogoPreview(null);
                     } catch (error) {
-                      // This will print exactly what FastAPI is complaining about!
-                      // console.error("FastAPI Error Detail:", error.response?.data); 
-                      alert("Logo upload failed")
+                      alert("Imeshindwa kufuta logo")
                     }
                   }}
                 className="text-sm text-red-400 hover:text-red-300 font-medium block"
               >
-                Remove Logo
+                Futa Logo
               </button>
             )}
-            <p className="text-xs text-gray-600">JPEG, PNG or WebP. Max 5MB.</p>
+            <p className="text-xs text-gray-600">JPEG, PNG au WebP. Max 5MB.</p>
           </div>
           {logoUploading && <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />}
         </div>
@@ -358,8 +333,8 @@ useEffect(() => {
         {/* Business Description */}
         <SectionCard
           icon={FileText}
-          title="Business Description"
-          description="Your AI agent uses this to introduce your business naturally to customers."
+          title="Maelezo ya Biashara"
+          description="AI yako inatumia haya kujitambulisha kwa wateja kwa njia ya kawaida."
         >
           <textarea
             {...register('business_description')}
@@ -372,17 +347,17 @@ useEffect(() => {
         {/* Business Hours */}
         <SectionCard
           icon={Clock}
-          title="Business Hours"
-          description="Agent uses these to answer 'mnafungua saa ngapi?'"
+          title="Masaa ya Biashara"
+          description="AI inatumia haya kujibu 'mnafungua saa ngapi?'"
         >
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Opening Time</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Saa ya Kufungua</label>
               <input {...register('opening_time')} type="time" className={`${inputCls} scheme-dark`} />
               {errors.opening_time && <p className="mt-1 text-xs text-red-400">{errors.opening_time.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Closing Time</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Saa ya Kufunga</label>
               <input {...register('closing_time')} type="time" className={`${inputCls} scheme-dark`} />
               {errors.closing_time && <p className="mt-1 text-xs text-red-400">{errors.closing_time.message}</p>}
             </div>
@@ -392,8 +367,8 @@ useEffect(() => {
         {/* Location */}
         <SectionCard
           icon={MapPin}
-          title="Business Location"
-          description="Agent shares this when customers ask 'mko wapi?'"
+          title="Mahali Biashara Ilipo"
+          description="AI inashiriki hii pale mteja anapouliza 'mko wapi?'"
         >
           <input
             {...register('location')}
@@ -406,8 +381,8 @@ useEffect(() => {
         {/* Contact */}
         <SectionCard
           icon={Phone}
-          title="Contact Phone"
-          description="Shared when customers want to speak to a real person."
+          title="Namba ya Mawasiliano"
+          description="Inashirikiwa pale mteja anapotaka kuongea na mtu halisi."
         >
           <input {...register('contact_phone')} type="tel" placeholder="e.g. 0712 345 678" className={inputCls} />
           {errors.contact_phone && <p className="mt-1 text-xs text-red-400">{errors.contact_phone.message}</p>}
@@ -416,8 +391,8 @@ useEffect(() => {
         {/* Website */}
         <SectionCard
           icon={Globe}
-          title="Business Website"
-          description="Agent can fetch live info from your website when customers ask about things not in your knowledge base."
+          title="Website ya Biashara"
+          description="AI inaweza kupakua taarifa za moja kwa moja kutoka website yako pale mteja anapouliza vitu visivyokuwa kwenye knowledge base."
         >
           <input
             {...register('website_url')}
@@ -430,8 +405,8 @@ useEffect(() => {
         {/* Delivery Zones */}
         <SectionCard
           icon={Truck}
-          title="Delivery Zones & Costs"
-          description="Agent uses this to answer delivery questions. One zone per line."
+          title="Maeneo na Bei za Delivery"
+          description="AI inatumia hii kujibu maswali ya delivery. Eneo moja kwa kila mstari."
         >
           <textarea
             {...register('delivery_zones')}
@@ -439,14 +414,14 @@ useEffect(() => {
             placeholder={`Mwanza Mjini - 3,000 TZS\nIlemela - 5,000 TZS\nNyamagana - 4,000 TZS`}
             className={`${inputCls} resize-none`}
           />
-          <p className="mt-1 text-xs text-gray-500">Format: Zone Name - Price (one per line)</p>
+          <p className="mt-1 text-xs text-gray-500">Mfumo: Jina la Eneo - Bei (mstari mmoja kwa kila eneo)</p>
         </SectionCard>
 
         {/* Save */}
         <div className="flex items-center justify-between pt-1">
           <div className="text-sm">
-            {saveStatus === 'saved' && <span className="text-indigo-400 font-medium">✓ Settings saved</span>}
-            {saveStatus === 'error' && <span className="text-red-400 font-medium">Failed — try again.</span>}
+            {saveStatus === 'saved' && <span className="text-indigo-400 font-medium">✓ Mipangilio imehifadhiwa</span>}
+            {saveStatus === 'error' && <span className="text-red-400 font-medium">Imeshindwa — jaribu tena.</span>}
           </div>
           <button
             type="submit"
@@ -454,7 +429,7 @@ useEffect(() => {
             className="flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 px-5 py-2.5 text-sm font-semibold text-white transition-colors"
           >
             {saveStatus === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {saveStatus === 'saving' ? 'Saving…' : 'Save Settings'}
+            {saveStatus === 'saving' ? 'Inahifadhi…' : 'Hifadhi Mipangilio'}
           </button>
         </div>
       </form>
@@ -467,9 +442,9 @@ useEffect(() => {
             <Bell className="w-4 h-4 text-amber-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-white">Customer Notice</h2>
+            <h2 className="text-base font-semibold text-white">Notisi kwa Wateja</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              A pinned alert shown to every customer who opens your chat. The AI will also reference it in conversations. Leave blank to remove.
+              Tahadhari inayoonekana kwa kila mteja anapofungua chati yako. AI pia itaitumia kwenye mazungumzo. Acha wazi ili kuondoa.
             </p>
           </div>
         </div>
@@ -492,18 +467,18 @@ useEffect(() => {
           />
           <div className="flex items-center justify-between mt-1">
             <p className={`text-xs ${notice.length > 250 ? 'text-amber-400' : 'text-gray-600'}`}>
-              {notice.length}/280 characters
+              herufi {notice.length}/280
             </p>
             {noticeData?.notice && !notice && (
-              <p className="text-xs text-gray-500">Empty = notice removed from chat</p>
+              <p className="text-xs text-gray-500">Wazi = notisi itaondolewa kwenye chati</p>
             )}
           </div>
         </div>
 
           <div className="flex items-center justify-between gap-3">
           <div className="text-xs">
-            {noticeSaving === 'saved' && <span className="text-amber-400 font-medium">✓ Notice updated</span>}
-            {noticeSaving === 'error' && <span className="text-red-400">Failed — try again</span>}
+            {noticeSaving === 'saved' && <span className="text-amber-400 font-medium">✓ Notisi imesasishwa</span>}
+            {noticeSaving === 'error' && <span className="text-red-400">Imeshindwa — jaribu tena</span>}
           </div>
           <div className="flex items-center gap-2">
             {/* Remove button — only visible when a notice is saved on server */}
@@ -526,7 +501,7 @@ useEffect(() => {
                 className="flex items-center gap-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-3 py-2 text-sm font-semibold text-red-400 transition-colors disabled:opacity-50"
               >
                 <Trash2Icon className="w-3.5 h-3.5" />
-                Remove
+                Futa
               </button>
             )}
 
@@ -553,10 +528,10 @@ useEffect(() => {
                 : <Bell className="w-3.5 h-3.5" />
               }
               {noticeSaving === 'saving'
-                ? 'Saving…'
+                ? 'Inahifadhi…'
                 : noticeData?.notice
-                ? 'Update Notice'
-                : 'Create Notice'
+                ? 'Sasisha Notisi'
+                : 'Tengeneza Notisi'
               }
             </button>
           </div>
@@ -572,17 +547,17 @@ useEffect(() => {
             <Brain className="w-4 h-4 text-indigo-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-white">Select Your AI Model</h2>
+            <h2 className="text-base font-semibold text-white">Chagua AI Model Yako</h2>
             {hasSubscription ? (
               <p className="text-xs text-gray-400 mt-0.5">
                 Una mpango wa <span className="text-indigo-400 font-medium capitalize">{subscription.plan_id}</span> —
-                mfumo wa AI umewekwa kiotomatiki kulingana na mpango wako. Chaguo hapa chini halitatumika ukiwa na mpango.
+                AI model imewekwa kiotomatiki kulingana na mpango wako. Chaguo hapa chini halitatumika ukiwa na mpango.
               </p>
             ) : (
               <p className="text-xs text-gray-400 mt-0.5">
-                Choose how smart and how expensive your assistant is.{' '}
+                Chagua jinsi msaidizi wako alivyo mahiri na gharama yake.{' '}
                 <button type="button" onClick={() => setShowCoinModal(true)} className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
-                  Learn how this is calculated
+                  Jifunze jinsi inavyokokotolewa
                 </button>
               </p>
             )}
@@ -593,7 +568,7 @@ useEffect(() => {
           <div className="flex items-center gap-2 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2">
             <Lock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
             <p className="text-xs text-indigo-300">
-              Locked by your {subscription.plan_id} subscription
+              Imefungwa na subscription yako ya {subscription.plan_id}
             </p>
           </div>
         )}
@@ -615,7 +590,7 @@ useEffect(() => {
             <Zap className={`w-5 h-5 shrink-0 ${activeAiMode === 'eco' ? 'text-yellow-400' : 'text-gray-500'}`} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">⚡ Eco Mode</p>
-              <p className="text-xs text-gray-400 mt-0.5">Costs less coins</p>
+              <p className="text-xs text-gray-400 mt-0.5">Inatumia coins chache</p>
             </div>
           </button>
           <button
@@ -634,13 +609,13 @@ useEffect(() => {
             <Brain className={`w-5 h-5 shrink-0 ${activeAiMode === 'smart' ? 'text-indigo-400' : 'text-gray-500'}`} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">🧠 Smart Mode</p>
-              <p className="text-xs text-gray-400 mt-0.5">Costs more coins, but smarter</p>
+              <p className="text-xs text-gray-400 mt-0.5">Inatumia coins zaidi, lakini ni mahiri zaidi</p>
             </div>
           </button>
         </div>
         <div className="text-xs text-gray-500 flex items-center gap-2 h-4">
-          {aiModeSaving && <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>}
-          {aiModeSaved && <span className="text-indigo-400">✓ Model updated</span>}
+          {aiModeSaving && <><Loader2 className="w-3 h-3 animate-spin" /> Inahifadhi...</>}
+          {aiModeSaved && <span className="text-indigo-400">✓ Model imesasishwa</span>}
         </div>
       </div>
 
@@ -677,7 +652,7 @@ useEffect(() => {
                   <span className="text-sm text-indigo-300 truncate">{chatLink}</span>
                 </div>
                 <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:border-indigo-500 px-3 py-2 text-xs font-medium text-gray-300 hover:text-white transition-colors shrink-0">
-                  {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+                  {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> Imenakiliwa!</> : <><Copy className="w-3.5 h-3.5" /> Nakili</>}
                 </button>
               </div>
 
@@ -686,7 +661,7 @@ useEffect(() => {
                 onClick={handleDownloadQR}
                 className="flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors mx-auto lg:mx-0"
               >
-                <QrCode className="w-4 h-4" /> Download QR Code
+                <QrCode className="w-4 h-4" /> Pakua QR Code
               </button>
             </div>
 
@@ -713,7 +688,7 @@ useEffect(() => {
                   />
                 </div>
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
-                  Scan & Chat
+                  Scan & Chati
                 </div>
               </div>
             </div>
@@ -730,8 +705,8 @@ useEffect(() => {
               <Code className="w-4 h-4 text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white">Embeddable Widget</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Paste into any website to add a floating chat button.</p>
+              <h2 className="text-base font-semibold text-white">Widget ya Kuweka kwenye Website</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Bandika kwenye website yoyote ili kuongeza kitufe cha chati kinachoelea.</p>
             </div>
           </div>
           <div className="bg-gray-950 border border-gray-700 rounded-lg p-4 relative">
@@ -750,7 +725,7 @@ useEffect(() => {
               }}
               className="absolute top-3 right-3 flex items-center gap-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:border-indigo-500 px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:text-white transition-colors"
             >
-              {copiedWidget ? <><Check className="w-3 h-3 text-emerald-400" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
+              {copiedWidget ? <><Check className="w-3 h-3 text-emerald-400" /> Imenakiliwa!</> : <><Copy className="w-3 h-3" /> Nakili</>}
             </button>
           </div>
         </div>
