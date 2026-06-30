@@ -665,34 +665,6 @@ useEffect(() => {
               </button>
             </div>
 
-            {/* Right: large centered QR, the visual hero */}
-            <div className="lg:order-2 shrink-0">
-              <div className="relative">
-                <div ref={qrRef} className="bg-white p-6 rounded-2xl shadow-2xl inline-block">
-                  <QRCodeSVG
-                    value={chatLink}
-                    size={220}
-                    bgColor="#ffffff"
-                    fgColor="#1e1b4b"
-                    level="H"
-                    imageSettings={
-                      tenantData?.user?.logo_url
-                        ? {
-                            src: tenantData.user.logo_url,
-                            height: 40,
-                            width: 40,
-                            excavate: true,
-                          }
-                        : undefined
-                    }
-                  />
-                </div>
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
-                  Scan & Chati
-                </div>
-              </div>
-            </div>
-
           </div>
         </div>
       )}
