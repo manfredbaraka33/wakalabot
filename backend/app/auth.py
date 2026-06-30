@@ -142,6 +142,18 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
     await db.commit()
     await db.refresh(tenant)
 
+    from app.sms import send_sms
+    base_url = "https://wakalabot.co.tz"
+    chat_link = f"{base_url}/chat/{slug}"
+    dashboard_link = f"{base_url}/dashboard"
+    if tenant.phone:
+        await send_sms(
+            tenant.phone,
+            f"Hongera {tenant.biz_name}! Akaunti yako ya WakalaBot imeundwa.\n"
+            f"Link ya wateja: {chat_link}\n"
+            f"Dashibodi: {dashboard_link}"
+        )
+
     return _build_token_response(tenant)
 
 

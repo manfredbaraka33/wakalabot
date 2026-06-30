@@ -612,6 +612,22 @@ class ToolExecutor:
             ),
             is_read=False,
         ))
+        from app.sms import send_sms
+        from app.models import Tenant as TenantModel
+        tenant_result = await self.db.execute(
+            select(TenantModel).where(TenantModel.id == self.tenant_id)
+        )
+        tenant_obj = tenant_result.scalar_one_or_none()
+        if tenant_obj and tenant_obj.phone:
+            leads_link = "https://wakalabot.co.tz/dashboard/leads"
+            await send_sms(
+                tenant_obj.phone,
+                f"🔥 Lead mpya!\n"
+                f"Mteja: {customer_id}\n"
+                f"Simu: {self.conv.customer_phone}\n"
+                f"Bidhaa: {product_name}\n"
+                f"Angalia: {leads_link}"
+            )
         await self.db.commit()
         return json.dumps({"saved": True, "message": "Lead imehifadhiwa. Merchant amearifiwa."})
 

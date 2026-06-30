@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
 
+    #-----NextSMS
+    NEXTSMS_USERNAME: str = ""
+    NEXTSMS_PASSWORD: str = ""
+    NEXTSMS_SENDER_ID: str = ""
+
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parents[1] / ".env"),
         env_file_encoding="utf-8",

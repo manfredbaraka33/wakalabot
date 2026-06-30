@@ -207,10 +207,30 @@ useEffect(() => {
     setTimeout(() => setCopied(false), 2500)
   }
 
+
+
   function handleDownloadQR() {
     const svg = qrRef.current?.querySelector('svg')
     if (!svg) return
-    const svgData = new XMLSerializer().serializeToString(svg)
+
+    // 1. Clone the SVG so we don't alter the one currently displaying on your website
+    const clonedSvg = svg.cloneNode(true)
+
+    // 2. Grab the current width and height to build a viewBox (if it's missing)
+    const currentWidth = clonedSvg.getAttribute('width') || '256'
+    const currentHeight = clonedSvg.getAttribute('height') || '256'
+    if (!clonedSvg.getAttribute('viewBox')) {
+      clonedSvg.setAttribute('viewBox', `0 0 ${currentWidth} ${currentHeight}`)
+    }
+
+    // 3. Force the SVG canvas to be 100% of the window and center the contents
+    clonedSvg.setAttribute('width', '100%')
+    clonedSvg.setAttribute('height', '100%')
+    clonedSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+
+
+    // 4. Convert to string and download
+    const svgData = new XMLSerializer().serializeToString(clonedSvg)
     const blob = new Blob([svgData], { type: 'image/svg+xml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -219,6 +239,13 @@ useEffect(() => {
     a.click()
     URL.revokeObjectURL(url)
   }
+
+
+
+ 
+
+
+
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-16 text-gray-500">
@@ -619,32 +646,78 @@ useEffect(() => {
 
       {/* Chat Link & QR */}
       {chatLink && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
-              <QrCode className="w-4 h-4 text-indigo-400" />
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8">
+          <div className="flex flex-col lg:flex-row items-center gap-8">
+
+            {/* Left: branding + copy link */}
+            <div className="flex-1 w-full lg:order-1 space-y-4 text-center lg:text-left">
+              <div className="flex items-center gap-3 justify-center lg:justify-start">
+                {tenantData?.user?.logo_url ? (
+                  <img src={tenantData.user.logo_url} alt="Logo" className="w-12 h-12 rounded-xl object-cover border border-gray-700" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-indigo-500/15 flex items-center justify-center">
+                    <span className="text-indigo-400 font-bold text-lg">
+                      {(tenantData?.user?.business_name ?? 'W')[0].toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <p className="text-white font-semibold text-base">{tenantData?.user?.business_name}</p>
+                  <p className="text-gray-500 text-xs">Chati nasi hapa</p>
+                </div>
+              </div>
+
+              <p className="text-gray-400 text-sm leading-relaxed max-w-sm mx-auto lg:mx-0">
+                Wateja wako wanaweza kuchati na AI yako papo hapo — kupitia link au kwa kuscan QR code.
+              </p>
+
+              <div className="flex items-center gap-2 max-w-sm mx-auto lg:mx-0">
+                <div className="flex-1 flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 min-w-0">
+                  <Link2 className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span className="text-sm text-indigo-300 truncate">{chatLink}</span>
+                </div>
+                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:border-indigo-500 px-3 py-2 text-xs font-medium text-gray-300 hover:text-white transition-colors shrink-0">
+                  {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadQR}
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors mx-auto lg:mx-0"
+              >
+                <QrCode className="w-4 h-4" /> Download QR Code
+              </button>
             </div>
-            <div>
-              <h2 className="text-base font-semibold text-white">Your Chat Link & QR Code</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Share or print. Customers scan and chat instantly.</p>
+
+            {/* Right: large centered QR, the visual hero */}
+            <div className="lg:order-2 shrink-0">
+              <div className="relative">
+                <div ref={qrRef} className="bg-white p-6 rounded-2xl shadow-2xl inline-block">
+                  <QRCodeSVG
+                    value={chatLink}
+                    size={220}
+                    bgColor="#ffffff"
+                    fgColor="#1e1b4b"
+                    level="H"
+                    imageSettings={
+                      tenantData?.user?.logo_url
+                        ? {
+                            src: tenantData.user.logo_url,
+                            height: 40,
+                            width: 40,
+                            excavate: true,
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                  Scan & Chat
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 min-w-0">
-              <Link2 className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-              <span className="text-sm text-indigo-300 truncate">{chatLink}</span>
-            </div>
-            <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:border-indigo-500 px-3 py-2 text-xs font-medium text-gray-300 hover:text-white transition-colors shrink-0">
-              {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
-            </button>
-          </div>
-          <div className="flex flex-col items-center gap-4">
-            <div ref={qrRef} className="bg-white p-4 rounded-xl inline-block">
-              <QRCodeSVG value={chatLink} size={180} bgColor="#ffffff" fgColor="#1e1b4b" level="M" />
-            </div>
-            <button type="button" onClick={handleDownloadQR} className="flex items-center gap-2 rounded-lg bg-gray-800 border border-gray-700 hover:border-indigo-500 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors">
-              <QrCode className="w-4 h-4" /> Download QR Code
-            </button>
+
           </div>
         </div>
       )}

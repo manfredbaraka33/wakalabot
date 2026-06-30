@@ -281,7 +281,14 @@ class AIEngine:
 
         if sub:
             sub.messages_used += 1
+            usage_pct = (sub.messages_used / sub.messages_included) * 100
+
             if sub.messages_used >= sub.messages_included:
+                from app.sms import send_sms
+                from app.models import Tenant as TenantModel
+                t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
+                if t and t.phone:
+                    await send_sms(t.phone, f"⚠️ Mazungumzo ya mpango wako yamefika kikomo ({sub.messages_included}). Nunua coins za ziada.")
                 db.add(Notification(
                     tenant_id=tenant_id,
                     type="insight",
@@ -292,7 +299,16 @@ class AIEngine:
                     ),
                     is_read=False,
                 ))
-            db.add(Transaction(
+            elif usage_pct >= 75 and (sub.messages_used - 1) / sub.messages_included * 100 < 75:
+                # Crossed the 75% threshold exactly this message — send once
+                from app.sms import send_sms
+                from app.models import Tenant as TenantModel
+                t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
+                if t and t.phone:
+                    await send_sms(t.phone, f"📊 Umetumia {sub.messages_used}/{sub.messages_included} mazungumzo (75%) ya mpango wako wa mwezi huu.")
+            
+            else:
+                db.add(Transaction(
                 tenant_id=tenant_id,
                 wallet_id=(await db.execute(
                     select(Wallet.id).where(Wallet.tenant_id == tenant_id)
@@ -305,13 +321,16 @@ class AIEngine:
                 note=f"Subscription ({sub.plan_id}) message {sub.messages_used}/{sub.messages_included}",
             ))
             return
+            
 
         # No active subscription — fall back to coin deduction
         result = await db.execute(select(Wallet).where(Wallet.tenant_id == tenant_id))
         wallet = result.scalar_one_or_none()
         if wallet is None:
             return
+        was_above_threshold = wallet.balance > 50
         wallet.balance = max(0, wallet.balance - coins)
+        
         db.add(Transaction(
             tenant_id=tenant_id,
             wallet_id=wallet.id,
@@ -322,6 +341,19 @@ class AIEngine:
             usd_cost=usd,
             note=f"AI agent ({mode} mode)",
         ))
+
+        if wallet.balance <= 0:
+            from app.sms import send_sms
+            from app.models import Tenant as TenantModel
+            t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
+            if t and t.phone:
+                await send_sms(t.phone, "⚠️ Coins zako zimeisha. Nunua coins za ziada ili AI iendelee kufanya kazi.")
+        elif wallet.balance <= 50 and was_above_threshold:
+            from app.sms import send_sms
+            from app.models import Tenant as TenantModel
+            t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
+            if t and t.phone:
+                await send_sms(t.phone, f"📊 Salio lako limefika coins {wallet.balance}. Fikiria kuongeza coins.")
 
     async def get_answer(
         self,

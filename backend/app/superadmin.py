@@ -602,6 +602,22 @@ async def approve_payment_request(
             expires_at=now + timedelta(days=30),
         ))
 
+        from app.sms import send_sms
+        tenant_obj = await db.get(Tenant, req.tenant_id)
+        if tenant_obj and tenant_obj.phone:
+            if req.package_id.startswith("sub_"):
+                await send_sms(
+                    tenant_obj.phone,
+                    f"✅ Mpango wa {plan['label']} umewashwa! "
+                    f"Mazungumzo {plan['messages_included']:,}/mwezi."
+                )
+            else:
+                await send_sms(
+                    tenant_obj.phone,
+                    f"✅ Coins {req.coins_requested:,} zimeongezwa. "
+                    f"Salio jipya: {wallet.balance:,} coins."
+                )
+
         # Notify merchant
         db.add(Notification(
             tenant_id=req.tenant_id,
@@ -626,6 +642,7 @@ async def approve_payment_request(
                 note=f"Subscription activated: {plan['label']} ({plan['messages_included']:,} messages/month). Ref: {req.mpesa_ref}",
             ))
 
+
     else:
         # Regular coin top-up
         wallet = await db.scalar(select(Wallet).where(Wallet.tenant_id == req.tenant_id))
@@ -641,6 +658,21 @@ async def approve_payment_request(
             package_id=req.package_id,
             note=f"Manual top-up approved. Ref: {req.mpesa_ref}",
         ))
+        from app.sms import send_sms
+        tenant_obj = await db.get(Tenant, req.tenant_id)
+        if tenant_obj and tenant_obj.phone:
+            if req.package_id.startswith("sub_"):
+                await send_sms(
+                    tenant_obj.phone,
+                    f"✅ Mpango wa {plan['label']} umewashwa! "
+                    f"Mazungumzo {plan['messages_included']:,}/mwezi."
+                )
+            else:
+                await send_sms(
+                    tenant_obj.phone,
+                    f"✅ Coins {req.coins_requested:,} zimeongezwa. "
+                    f"Salio jipya: {wallet.balance:,} coins."
+                )
         db.add(Notification(
             tenant_id=req.tenant_id,
             type="new_message",
