@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { MessageSquare, Phone, RefreshCw, User, Bot, ChevronLeft, ChevronRight, Flame, ThumbsDown, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { getConversations, getConversation } from '../api/conversations'
 import apiClient from '../api/axios'
+import ReactMarkdown from 'react-markdown' 
+import remarkGfm from 'remark-gfm'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -141,7 +143,26 @@ function MessageBubble({ msg }) {
             />
           ))}
           {cleanText && (
-            <p className="whitespace-pre-wrap wrap-break-word">{cleanText}</p>
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                // Custom link styling
+                a: ({ node, ...props }) => (
+                  <a 
+                    {...props} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-indigo-400 hover:text-indigo-300 underline font-medium break-all"
+                  />
+                ),
+                // Custom paragraph styling moved here safely
+                p: ({ node, ...props }) => (
+                  <p {...props} className="whitespace-pre-wrap wrap-break-word" />
+                )
+              }}
+            >
+              {cleanText}
+            </ReactMarkdown>
           )}
           <p className={`text-[10px] mt-1 text-right ${isUser ? 'text-gray-400' : 'text-indigo-200'}`}>
             {formatTime(msg.timestamp)}
@@ -156,7 +177,6 @@ function MessageBubble({ msg }) {
     </div>
   )
 }
-
 // ── Leads Panel ───────────────────────────────────────────────────────────────
 
 function LeadsPanel({ convId }) {

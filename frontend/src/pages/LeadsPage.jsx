@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Flame, ThumbsDown, Clock, MessageSquare, ShoppingBag, User, X, Bot, CheckCircle, Copy, Check } from 'lucide-react'
 import { getAllLeads, getConversationMessages } from '../api/conversations' 
-// 1. IMPORT YOUR ZUSTAND STORE (Adjust this path to match your project structure)
 import useTenantStore from '../store/useTenantStore'
-
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import apiClient from '../api/axios'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -113,8 +113,28 @@ function ChatModal({ conversationId, customerPhone, onClose }) {
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-indigo-600/20 text-indigo-400' : 'bg-emerald-600/20 text-emerald-400'}`}>
                     {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                   </div>
-                  <div className={`rounded-2xl px-4 py-2 text-sm ${isUser ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-gray-800/80 text-gray-300 border border-gray-700/30 rounded-tl-none'}`}>
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <div className={`rounded-2xl px-4 py-2 text-sm ${isUser ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-gray-800/80 text-gray-300 border border-gray-700/30 rounded-tl-none'}`}>         
+                     <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          
+                          a: ({ node, ...props }) => (
+                            <a 
+                              {...props} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-indigo-400 hover:text-indigo-300 underline font-medium break-all"
+                            />
+                          ),
+                         
+                          p: ({ node, ...props }) => (
+                            <p {...props} className="whitespace-pre-wrap" />
+                          )
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+
                     {msg.image_url && (
                       <div className="mt-2 rounded-lg overflow-hidden max-w-xs">
                         <img src={msg.image_url} alt="Attachment" className="w-full h-auto object-cover max-h-48" />
