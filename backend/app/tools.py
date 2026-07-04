@@ -103,12 +103,14 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "product_name": {"type": "string",
-                                     "description": "The clean name of the product extracted from the user's input (e.g., 'Unga wa ngano')."
-                                     },
-                    "quantity": {"type": "string",
-                                 "description": "The total count of the product requested. Can be passed as a numeric string like '1'."
-                                 },
+                    "product_name": {
+                        "type": "string",
+                        "description": "The clean name of the product extracted from the user's input (e.g., 'Unga wa ngano')."
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "description": "The total count of the product requested. Can be passed as a numeric string like '1'."
+                    },
                 },
                 "required": ["product_name", "quantity"],
             },
@@ -122,8 +124,10 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "location": {"type": "string", 
-                                 "description": "The location or area to calculate delivery cost for"},
+                    "location": {
+                        "type": "string",
+                        "description": "The location or area to calculate delivery cost for"
+                    },
                 },
                 "required": ["location"],
             },
@@ -133,18 +137,50 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "save_lead",
-            "description": "Save a customer purchase lead to the database. Call this ONLY after the customer has expressed clear buying intent AND you know their name. This notifies the merchant. CRITICAL: Do not call this tool until you have explicitly collected the customer's phone number and the exact product they want in the chat history. If you call this tool without a phone number or product name, it will fail and the lead will not be saved. Always confirm these details in the conversation before calling this tool.",
+            # ── FIX: description now uses the correct parameter name 'customer_phone'
+            # and clearly explains when to populate it vs when to leave it empty.
+            "description": (
+                "Save a customer purchase lead to the database and notify the merchant. "
+                "Only call this after the customer has shown clear buying intent AND their name is known. "
+                "GUEST USERS (session ID starts with 'guest_'): you MUST collect their real phone number "
+                "during the conversation before calling this tool. Once collected, pass it as 'customer_phone'. "
+                "A guest session ID like 'guest_1234_abc' is NOT a phone number — never pass it as customer_phone. "
+                "REGISTERED USERS: their phone is already in the system — do NOT pass customer_phone, leave it empty."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "product_name": {"type": "string", "description": "Product or service the customer wants"},
-                    "quantity": {"type": "string", 
-                                 "description": "The total quantity of items the customer wants. Can be passed as a numeric string like '2' or '5'. Defaults to '1' if not stated."
-                                 },
-                    "notes": {"type": "string", "description": "Any extra info about the order"},
+                    "product_name": {
+                        "type": "string",
+                        "description": "Product or service the customer wants"
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "description": "How many items. Defaults to '1' if not stated."
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Any extra order details"
+                    },
                     "intent_type": {
                         "type": "string",
                         "enum": ["order_intent", "appointment_intent", "price_inquiry", "general_interest"],
+                    },
+                    # ── FIX: these two parameters now exist in the schema so Gemini can pass them
+                    "customer_phone": {
+                        "type": "string",
+                        "description": (
+                            "The customer's real phone number — ONLY for guest users who just provided it "
+                            "in the conversation. Leave empty for registered users (their phone is already known). "
+                            "Must be a real phone number like '0752303770', never a guest session ID."
+                        )
+                    },
+                    "customer_name": {
+                        "type": "string",
+                        "description": (
+                            "The customer's name if you collected it during this conversation "
+                            "and it is not yet stored. Leave empty if already known."
+                        )
                     },
                 },
                 "required": ["product_name", "intent_type", "quantity"],
@@ -257,7 +293,10 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "question": {"type": "string", "description": "The customer's question that could not be answered"},
+                    "question": {
+                        "type": "string",
+                        "description": "The customer's question that could not be answered"
+                    },
                     "category": {
                         "type": "string",
                         "enum": ["product_info", "service_info", "pricing", "policy", "location", "other"],
@@ -475,7 +514,9 @@ class ToolExecutor:
             select(KnowledgeBase)
             .where(
                 KnowledgeBase.tenant_id == self.tenant_id,
+                # ── FIX: also exclude notice entries from search results
                 KnowledgeBase.content.not_like("__SHOP_SETTINGS__%"),
+                KnowledgeBase.content.not_like("__CUSTOMER_NOTICE__%"),
             )
             .order_by(KnowledgeBase.embedding.cosine_distance(emb))
             .limit(3)
@@ -496,9 +537,7 @@ class ToolExecutor:
         })
 
     async def calculate_order_total(self, product_name: str, quantity: Union[int, str]) -> str:
-
         qty_int = int(quantity)
-
         result = await self.db.execute(
             select(Product).where(
                 Product.tenant_id == self.tenant_id,
@@ -560,12 +599,15 @@ class ToolExecutor:
         intent_type: str = "order_intent",
         quantity: Union[int, str] = "1",
         notes: str = "",
+        customer_phone: str = "",   # ── real phone for guests, empty for registered
+        customer_name: str = "",    # ── name if collected during conversation
     ) -> str:
         try:
             qty_int = int(quantity)
         except (ValueError, TypeError):
             qty_int = 1
 
+        # Duplicate lead guard
         existing = await self.db.execute(
             select(LeadEvent).where(
                 LeadEvent.conversation_id == self.conv.id,
@@ -574,27 +616,47 @@ class ToolExecutor:
         )
         if existing.scalar_one_or_none():
             return json.dumps({"saved": False, "message": "Lead tayari ipo kwa mazungumzo haya."})
-        
-        # 1. Guard against missing or placeholder phone numbers
-        phone = self.conv.customer_phone
-        if not phone or phone.strip() == "" or "unknown" in phone.lower():
-            return json.dumps({
-                "saved": False, 
-                "message": "Huwezi kuhifadhi lead bila namba ya simu ya mteja. Tafadhali omba namba ya simu ya mteja kwanza kabla ya kuita tool hii."
-            })
 
-        # 2. Guard against vague product details
-        if not product_name or product_name.strip() == "":
+        # Resolve phone — prefer what AI passed, fall back to conversation record
+        phone = customer_phone.strip() if customer_phone.strip() else (self.conv.customer_phone or "")
+        name = customer_name.strip() if customer_name.strip() else (self.conv.customer_name or "")
+
+        # Validate phone is a real number, not a session ID
+        is_real_phone = (
+            bool(phone) and
+            "unknown" not in phone.lower() and
+            not phone.startswith("tg_") and
+            not phone.startswith("fb_") and
+            not phone.startswith("ig_") and
+            not phone.startswith("guest_")
+        )
+
+        if not is_real_phone:
             return json.dumps({
                 "saved": False,
-                "message": "Jina la bidhaa halijapatikana. Uliza mteja bidhaa gani anayotaka kabla ya kuhifadhi lead."
+                "message": (
+                    "Huwezi kuhifadhi lead bila namba ya simu ya kweli. "
+                    "Uliza mteja namba yake ya simu kwanza, kisha piga simu tena ukipata."
+                )
             })
+
+        if not product_name or not product_name.strip():
+            return json.dumps({
+                "saved": False,
+                "message": "Jina la bidhaa halijapatikana. Uliza mteja bidhaa gani anayotaka."
+            })
+
+        # Update conversation record with real details if they differ
+        if phone and phone != self.conv.customer_phone:
+            self.conv.customer_phone = phone
+        if name and name != self.conv.customer_name:
+            self.conv.customer_name = name
 
         lead = LeadEvent(
             tenant_id=self.tenant_id,
             conversation_id=self.conv.id,
-            customer_phone=self.conv.customer_phone,
-            customer_name=self.conv.customer_name,
+            customer_phone=phone,
+            customer_name=name,
             event_type=intent_type,
             product_name=product_name,
             status="hot",
@@ -602,16 +664,18 @@ class ToolExecutor:
         )
         self.db.add(lead)
 
-        customer_id = self.conv.customer_name or self.conv.customer_phone
+        customer_identifier = name or phone
         self.db.add(Notification(
             tenant_id=self.tenant_id,
             type="new_lead",
             message=(
-                f"🔥 Lead mpya: {customer_id} anataka {product_name}"
+                f"🔥 Lead mpya: {customer_identifier} anataka {product_name}"
                 + (f" x{qty_int}" if qty_int > 1 else "")
             ),
             is_read=False,
         ))
+
+        # SMS to merchant
         from app.sms import send_sms
         from app.models import Tenant as TenantModel
         tenant_result = await self.db.execute(
@@ -623,11 +687,12 @@ class ToolExecutor:
             await send_sms(
                 tenant_obj.phone,
                 f"🔥 Lead mpya!\n"
-                f"Mteja: {customer_id}\n"
-                f"Simu: {self.conv.customer_phone}\n"
+                f"Mteja: {customer_identifier}\n"
+                f"Simu: {phone}\n"
                 f"Bidhaa: {product_name}\n"
                 f"Angalia: {leads_link}"
             )
+
         await self.db.commit()
         return json.dumps({"saved": True, "message": "Lead imehifadhiwa. Merchant amearifiwa."})
 
@@ -744,7 +809,7 @@ class ToolExecutor:
             return json.dumps({"found": True, "results": text})
         except Exception as e:
             return json.dumps({"found": False, "error": f"Search failed: {str(e)}"})
-        
+
     async def log_unanswered_question(self, question: str, category: str = "other") -> str:
         from app.models import UnansweredQuestion
         self.db.add(UnansweredQuestion(
@@ -754,6 +819,6 @@ class ToolExecutor:
             customer_phone=self.conv.customer_phone,
         ))
         return json.dumps({"logged": True})
-        
+
     async def context_restore(self) -> str:
         return json.dumps({"restored": True})

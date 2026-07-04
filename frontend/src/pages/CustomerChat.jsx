@@ -111,6 +111,10 @@ function CustomerAccountModal({ customer, onClose, onUpdate }) {
   const [saved, setSaved] = useState(false)
   const [pwSaved, setPwSaved] = useState(false)
 
+  const [otpCode, setOtpCode] = useState('')
+  const [showOtpField, setShowOtpField] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+
   async function saveProfile(e) {
     e.preventDefault()
     setSaving(true)
@@ -135,8 +139,33 @@ function CustomerAccountModal({ customer, onClose, onUpdate }) {
     finally { setSaving(false) }
   }
 
+
   async function changePassword(e) {
     e.preventDefault()
+    
+    // Step 1: If OTP hasn't been requested yet, fetch it first
+    if (!showOtpField) {
+      setSendingOtp(true)
+      setPwError('')
+      try {
+        const res = await fetch(`${API}/api/v1/customer/request-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: customer.phone }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          const errMsg = Array.isArray(data.detail) ? data.detail[0]?.msg : (data.detail || 'Imeshindwa kutuma OTP')
+          setPwError(errMsg)
+          return
+        }
+        setShowOtpField(true)
+      } catch { setPwError('Connection error') }
+      finally { setSendingOtp(false) }
+      return
+    }
+
+    // Step 2: If OTP field is visible, run the password update process
     setPwSaving(true)
     setPwError('')
     try {
@@ -146,12 +175,22 @@ function CustomerAccountModal({ customer, onClose, onUpdate }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${customer.token}`,
         },
-        body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
+        body: JSON.stringify({ 
+          current_password: currentPw, 
+          new_password: newPw, 
+          code: otpCode.trim() 
+        }),
       })
       const data = await res.json()
-      if (!res.ok) { setPwError(data.detail || 'Imeshindwa kubadilisha'); return }
+      if (!res.ok) {
+        const errMsg = Array.isArray(data.detail) ? data.detail[0]?.msg : (data.detail || 'Imeshindwa kubadilisha')
+        setPwError(errMsg)
+        return
+      }
       setCurrentPw('')
       setNewPw('')
+      setOtpCode('')
+      setShowOtpField(false)
       setPwSaved(true)
       setTimeout(() => setPwSaved(false), 3000)
     } catch { setPwError('Connection error') }
@@ -169,31 +208,51 @@ function CustomerAccountModal({ customer, onClose, onUpdate }) {
         </div>
 
         <div className="p-5 space-y-6">
-          <form onSubmit={saveProfile} className="space-y-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Taarifa za Kibinafsi</p>
+          
+          <form onSubmit={changePassword} className="space-y-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Badilisha Neno la Siri</p>
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Jina</label>
+              <label className="block text-xs text-gray-400 mb-1.5">Neno la Siri la Sasa</label>
               <input
-                value={name} onChange={e => setName(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-                maxLength={100}
+                type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)}
+                disabled={showOtpField}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">Nambari ya Simu</label>
+              <label className="block text-xs text-gray-400 mb-1.5">Neno Jipya la Siri</label>
               <input
-                value={phone} onChange={e => setPhone(e.target.value)}
-                type="tel"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+                placeholder="Angalau herufi 6"
+                disabled={showOtpField}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
               />
             </div>
-            {error && <p className="text-red-400 text-xs">{error}</p>}
+
+            {/* CONDITIONAL PATCH: Only show OTP input after step 1 succeeds */}
+            {showOtpField && (
+              <div className="animate-fadeIn">
+                <label className="block text-xs text-amber-400 mb-1.5">Ingiza Nambari ya OTP niliyotumiwa kwa ujumbe</label>
+                <input
+                  type="text" value={otpCode} onChange={e => setOtpCode(e.target.value)}
+                  placeholder="Nambari 6" maxLength={6}
+                  className="w-full bg-gray-800 border border-amber-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 text-center font-mono tracking-widest"
+                />
+              </div>
+            )}
+
+            {pwError && <p className="text-red-400 text-xs">{pwError}</p>}
+            
             <button
-              type="submit" disabled={saving}
-              className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+              type="submit" disabled={pwSaving || sendingOtp || !currentPw || !newPw || (showOtpField && !otpCode)}
+              className="w-full py-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
             >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-              {saved ? '✓ Imehifadhiwa' : 'Hifadhi Mabadiliko'}
+              {(pwSaving || sendingOtp) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              {pwSaved 
+                ? '✓ Imebadilishwa' 
+                : showOtpField 
+                  ? 'Thibitisha & Badilisha' 
+                  : 'Tuma nambari ya OTP'}
             </button>
           </form>
 
@@ -301,219 +360,165 @@ function LoginForm({ onSuccess }) {
   )
 }
 
-function ClaimNumberForm({ phone, onResult, onBack }) {
-  const [claimantName, setClaimantName] = useState('')
-  const [contact, setContact] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  async function submit(e) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch(`${API}/api/v1/customer/claim-number`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: phone.trim(),
-          claimant_name: claimantName.trim(),
-          claimant_contact: contact.trim(),
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.detail || 'Imeshindwa kutuma madai'); return }
-      onResult(data)
-    } catch { setError('Connection error') }
-    finally { setLoading(false) }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-indigo-500/8 border border-indigo-500/20 rounded-lg p-3">
-        <p className="text-indigo-400 text-xs font-semibold mb-1">Nambari Tayari Ipo</p>
-        <p className="text-gray-300 text-xs leading-relaxed">
-          Nambari <span className="text-white font-mono">{phone}</span> tayari imesajiliwa.
-          Kama ni yako kweli, jaza fomu hii. Tutakupigia simu kukuthibitisha.
-        </p>
-      </div>
-
-      <form onSubmit={submit} className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1.5">Jina Lako Kamili</label>
-          <input
-            type="text" value={claimantName} onChange={e => setClaimantName(e.target.value)}
-            placeholder="Jina kama linavyoonekana kwenye kitambulisho"
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-            autoFocus maxLength={100}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1.5">
-            Njia Nyingine ya Kuwasiliana
-          </label>
-          <input
-            type="text" value={contact} onChange={e => setContact(e.target.value)}
-            placeholder="WhatsApp au nambari mbadala"
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-            maxLength={200}
-          />
-          <p className="text-xs text-gray-600 mt-1">
-            Nambari hii itatumika kukupigia simu ili kuthibitisha madai yako
-          </p>
-        </div>
-
-        {error && <p className="text-red-400 text-xs">{error}</p>}
-
-        <div className="flex gap-2">
-          <button
-            type="button" onClick={onBack}
-            className="flex-1 py-2.5 rounded-xl text-sm text-gray-400 border border-gray-700 hover:border-gray-600 transition-colors"
-          >
-            Rudi
-          </button>
-          <button
-            type="submit" disabled={loading || !claimantName || !contact}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold rounded-xl py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
-          >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            Tuma Madai
-          </button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-function RegisterForm({ onSuccess }) {
-  const [name, setName] = useState('')
+function OTPRegisterForm({ onSuccess }) {
+  const [step, setStep] = useState('phone') // 'phone' | 'verify'
   const [phone, setPhone] = useState('')
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showClaim, setShowClaim] = useState(false)
-  const [claimResult, setClaimResult] = useState(null)
+  const [resendCooldown, setResendCooldown] = useState(0)
 
-  async function submit(e) {
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setInterval(() => setResendCooldown(s => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(t)
+  }, [resendCooldown])
+
+  async function requestOtp(e) {
+    e?.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`${API}/api/v1/customer/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone.trim() }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        // Extract the exact error message text if FastAPI sent a validation list
+        const errMsg = Array.isArray(data.detail) 
+          ? data.detail[0]?.msg 
+          : (data.detail || 'Imeshindwa kutuma OTP');
+        
+        setError(errMsg);
+        console.error("Server Error Details:", data.detail); // Keeps a detailed log in your browser console
+        return;
+      }
+
+      setStep('verify')
+      setResendCooldown(60)
+    } catch { setError('Connection error') }
+    finally { setLoading(false) }
+  }
+
+  async function verifyOtp(e) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    setShowClaim(false)
     try {
-      const res = await fetch(`${API}/api/v1/customer/register`, {
+      const res = await fetch(`${API}/api/v1/customer/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), password }),
+        body: JSON.stringify({ phone: phone.trim(), code: code.trim(), name: name.trim(), password }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        if (res.status === 409) {
-          setShowClaim(true)
-        } else {
-          setError(data.detail || 'Imeshindwa kusajili')
-        }
-        return
-      }
+      if (!res.ok) { setError(data.detail || 'Imeshindwa kuthibitisha'); return }
       onSuccess(data)
     } catch { setError('Connection error') }
     finally { setLoading(false) }
   }
 
-  if (claimResult) {
+  if (step === 'phone') {
     return (
-      <div className="space-y-4">
-        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 space-y-3">
-          <p className="text-green-400 text-sm font-semibold">✅ Madai Yako Yamesajiliwa</p>
-          <div className="bg-gray-800 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-400 mb-1">Nambari yako ya madai</p>
-            <p className="text-white font-mono text-lg font-bold tracking-widest">{claimResult.claim_code}</p>
-          </div>
-          <p className="text-xs text-gray-300 leading-relaxed">{claimResult.message}</p>
+      <form onSubmit={requestOtp} className="space-y-4">
+        <div className="bg-indigo-500/8 border border-indigo-500/20 rounded-lg p-3">
+          <p className="text-indigo-400 text-xs leading-relaxed">
+            Tutakutumia SMS yenye nambari ya uthibitisho. Tumia nambari unayoimiliki wewe mwenyewe.
+          </p>
         </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-400 mb-1.5">Nambari ya Simu</label>
+          <input
+            type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+            placeholder="+255 712 345 678"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+            autoFocus
+          />
+        </div>
+        {error && <p className="text-red-400 text-xs">{error}</p>}
         <button
-          onClick={() => { setClaimResult(null); setShowClaim(false) }}
-          className="w-full py-2 rounded-lg text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-600 transition-colors"
+          type="submit" disabled={loading || !phone}
+          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold rounded-xl py-3 text-sm transition-colors flex items-center justify-center gap-2"
         >
-          Rudi Nyuma
+          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          Tuma Nambari ya Uthibitisho
         </button>
-      </div>
+      </form>
     )
   }
 
-  if (showClaim) {
-    return <ClaimNumberForm phone={phone} onResult={setClaimResult} onBack={() => setShowClaim(false)} />
-  }
-
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-lg p-3">
-        <p className="text-yellow-400 text-xs font-semibold mb-1">⚠️ Muhimu</p>
-        <p className="text-gray-400 text-xs leading-relaxed">
-          Tumia nambari ya simu unayomiliki wewe mwenyewe.
-          Akaunti zilizo na nambari za uongo zinaweza kufutwa wakati wowote bila notisi.
+    <form onSubmit={verifyOtp} className="space-y-4">
+      <div className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg p-3">
+        <p className="text-emerald-400 text-xs">
+          Tumetuma SMS kwa <span className="font-mono">{phone}</span>. Weka nambari hapo chini.
         </p>
       </div>
-
+      <div>
+        <label className="block text-xs font-medium text-gray-400 mb-1.5">Nambari ya OTP</label>
+        <input
+          type="text" inputMode="numeric" maxLength={6} value={code}
+          onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+          placeholder="123456"
+          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm text-center tracking-[0.5em] font-mono focus:outline-none focus:border-indigo-500"
+          autoFocus
+        />
+      </div>
       <div>
         <label className="block text-xs font-medium text-gray-400 mb-1.5">Jina Lako</label>
         <input
           type="text" value={name} onChange={e => setName(e.target.value)}
           placeholder="e.g. Juma Hassan"
           className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-          autoFocus maxLength={100}
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-400 mb-1.5">Nambari ya Simu</label>
-        <input
-          type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-          placeholder="+255 712 345 678"
-          className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-        />
+        <label className="block text-xs font-medium text-gray-400 mb-1.5">Neno la Siri</label>
+        <div className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'} value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Angalau herufi 6"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-4 pr-10 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
+          />
+          <button type="button" onClick={() => setShowPassword(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
-      
-      <div>
-      <label className="block text-xs font-medium text-gray-400 mb-1.5">Neno la Siri</label>
-      <div className="relative">
-        <input
-          type={showPassword ? 'text' : 'password'} 
-          value={password} 
-          onChange={e => setPassword(e.target.value)}
-          placeholder="Angalau herufi 6"
-          className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-4 pr-10 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
-        />
-        <button
-          type="button" // Prevents form trigger behavior on click
-          onClick={() => setShowPassword(v => !v)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors focus:outline-none"
-          title={showPassword ? "Ficha neno la siri" : "Onesha neno la siri"}
-        >
-          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-        </button>
-      </div>
-    </div>
-
       {error && <p className="text-red-400 text-xs">{error}</p>}
-
       <button
-        type="submit" disabled={loading || !name || !phone || !password}
+        type="submit" disabled={loading || code.length !== 6 || !name || !password}
         className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold rounded-xl py-3 text-sm transition-colors flex items-center justify-center gap-2"
       >
         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-        Jisajili
+        Thibitisha na Jisajili
+      </button>
+      <button
+        type="button" onClick={requestOtp} disabled={resendCooldown > 0}
+        className="w-full text-xs text-gray-300 hover:text-gray-300 disabled:opacity-40"
+      >
+        {resendCooldown > 0 ? `Tuma tena baada ya ${resendCooldown}s` : 'Sikupokea? Tuma tena'}
       </button>
     </form>
   )
 }
 
+
+
 // ─────────────────────────────────────────────────────────────────────────
 // Auth modal overlay — shows business context so customer knows why
 // ─────────────────────────────────────────────────────────────────────────
-function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess }) {
+function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, showGuestInfo, setShowGuestInfo,enterGuestMode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0">
-      <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl">
+      <div className="w-full max-h-130 p-4 overflow-auto max-w-sm bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl">
         {activeBiz && (
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800 bg-gray-800/50 rounded-t-2xl">
             <div className="w-9 h-9 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
@@ -542,6 +547,46 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess }) {
         )}
 
         <div className="p-5 space-y-4">
+                  {/* Guest chat option */}
+          <div className="mt-1 pt-3 border-t border-gray-800/60">
+            {!showGuestInfo ? (
+              <button
+                onClick={() => setShowGuestInfo(true)}
+                className="w-full py-2.5 rounded-xl text-xs text-gray-500 hover:text-gray-300 border border-gray-700/40 hover:border-gray-600 transition-colors"
+              >
+                Chati bila kusajili →
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-gray-800/50 border border-gray-700/40 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-white">Kabla ya kuendelea:</p>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    📋 Mfanyabiashara ataona mazungumzo yako kwenye dashibodi yake
+                  </p>
+                  <p className="text-xs text-amber-400/80 leading-relaxed">
+                    ⚠️ Historia yako haitahifadhiwa — itafutwa ukifunga kivinjari
+                  </p>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    ✅ Unaweza kujisajili wakati wowote ili kupata historia
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowGuestInfo(false)}
+                    className="flex-1 py-2 rounded-xl text-xs text-gray-400 border border-gray-700 hover:border-gray-600 transition-colors"
+                  >
+                    Rudi
+                  </button>
+                  <button
+                    onClick={onGuestEnter}
+                    className="flex-1 py-2 rounded-xl text-xs bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+                  >
+                    Endelea bila akaunti
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex rounded-lg bg-gray-800 p-1">
             <button
               onClick={() => setAuthMode('login')}
@@ -559,8 +604,9 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess }) {
 
           {authMode === 'login'
             ? <LoginForm onSuccess={onSuccess} />
-            : <RegisterForm onSuccess={onSuccess} />}
+            : <OTPRegisterForm onSuccess={onSuccess} />}
         </div>
+
       </div>
     </div>
   )
@@ -600,6 +646,36 @@ export default function CustomerChat() {
   const [notice, setNotice] = useState(null)
   const [noticeRead, setNoticeRead] = useState(false)
 
+  const [isGuest, setIsGuest] = useState(false)
+  const [guestPhone, setGuestPhone] = useState(null)
+  const [showGuestInfo, setShowGuestInfo] = useState(false)
+
+
+  function initGuestSession() {
+  const key = `wk_guest_${slug}`
+  let id = localStorage.getItem(key)
+  if (!id) {
+    id = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    localStorage.setItem(key, id)
+  }
+  return id
+}
+
+function enterGuestMode() {
+  const id = initGuestSession()
+  setGuestPhone(id)
+  setIsGuest(true)
+  setShowAuthModal(false)
+  setShowGuestInfo(false)
+  if (activeBiz) {
+    setMessages([{
+      role: 'assistant',
+      content: `Habari! Karibu ${activeBiz.biz_name}. Naweza kukusaidia nini leo?`,
+      image_url: null, id: null,
+    }])
+  }
+}
+
 
   // ── Load directory ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -635,7 +711,19 @@ export default function CustomerChat() {
         setBizError(null)
 
         if (!authed) {
-          setShowAuthModal(true)
+          // Check if this device already has a guest session for this slug
+          const existingGuestId = localStorage.getItem(`wk_guest_${slug}`)
+          if (existingGuestId) {
+            setGuestPhone(existingGuestId)
+            setIsGuest(true)
+            setMessages([{
+              role: 'assistant',
+              content: `Habari! Karibu tena ${biz.biz_name}. Naweza kukusaidia nini leo?`,
+              image_url: null, id: null,
+            }])
+          } else {
+            setShowAuthModal(true)
+          }
           return
         }
         loadHistory(slug, biz)
@@ -722,7 +810,7 @@ export default function CustomerChat() {
   // ── Send message ─────────────────────────────────────────────────────────
   async function doSend(text) {
     if (!text.trim() || !activeBiz || loading) return
-    if (!authed) {
+    if (!authed && !isGuest) {
       setShowAuthModal(true)
       return
     }
@@ -733,12 +821,21 @@ export default function CustomerChat() {
       const res = await fetch(`${API}/api/v1/chat/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text.trim(),
-          customer_token: customer.token,
-          customer_phone: customer.phone,
-          tenant_slug: activeBiz.slug,
-        }),
+        body: JSON.stringify(
+          isGuest
+            ? {
+                message: text.trim(),
+                customer_phone: guestPhone,
+                tenant_slug: activeBiz.slug,
+                is_guest: true,
+              }
+            : {
+                message: text.trim(),
+                customer_token: customer.token,
+                customer_phone: customer.phone,
+                tenant_slug: activeBiz.slug,
+              }
+        ),
       })
 
       if (!res.ok) {
@@ -802,6 +899,9 @@ export default function CustomerChat() {
           authMode={authMode}
           setAuthMode={setAuthMode}
           onSuccess={handleAuthSuccess}
+          onGuestEnter={enterGuestMode}
+          showGuestInfo={showGuestInfo}
+          setShowGuestInfo={setShowGuestInfo}
         />
       )}
 
@@ -926,7 +1026,7 @@ export default function CustomerChat() {
           <>
             {/* Chat header */}
             <div style={{ flexShrink: 0 }} className="px-4 py-3 border-b border-gray-800 bg-gray-900 flex items-center gap-3">
-              {slug && (
+              {slug && !isGuest && (
                 <button onClick={() => navigate('/chat')} className="text-gray-500 hover:text-white transition-colors">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
@@ -950,20 +1050,48 @@ export default function CustomerChat() {
                   AI Assistant Online
                 </p>
               </div>
-              {authed && customer && (
+              {isGuest ? (
+                <button
+                  onClick={() => {
+                    setIsGuest(false)
+                    setGuestPhone(null)
+                    setShowAuthModal(true)
+                    setAuthMode('register')
+                    setMessages([])
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-indigo-400 border border-indigo-500/30 rounded-lg px-3 py-1.5 hover:bg-indigo-500/10 transition-colors"
+                >
+                  ← Ingia / Jisajili
+                </button>
+              ) : authed && customer && (
                 <div className='flex gap-2'>
                   <button onClick={toggle} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
-                  {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                </button>
+                    {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                  </button>
                   <button onClick={() => setShowAccount(true)} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                  <div className="w-7 h-7 rounded-full bg-indigo-500/20 flex items-center justify-center">
-                    <span className="text-indigo-400 text-xs font-bold">{customer.name?.charAt(0)}</span>
-                  </div>
-                  
-                </button>
+                    <div className="w-7 h-7 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                      <span className="text-indigo-400 text-xs font-bold">{customer.name?.charAt(0)}</span>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
+
+            {/* Guest mode indicator */}
+            {isGuest && (
+              <div className="shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/40 border-b border-gray-700/30">
+                <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500 inline-block" />
+                  Unachati kama mgeni
+                </p>
+                <button
+                  onClick={() => { setIsGuest(false); setGuestPhone(null); setShowAuthModal(true); setAuthMode('register') }}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  Jisajili →
+                </button>
+              </div>
+            )}
 
             {/* Notice banner */}
             {notice && activeBiz && (
@@ -1088,11 +1216,23 @@ export default function CustomerChat() {
             )}
 
             {/* Input */}
+            {/* Guest signup nudge */}
+            {isGuest && (
+              <div className="px-4 py-2 border-t border-gray-800/50 bg-gray-900/60 flex items-center justify-center gap-2">
+                <span className="text-xs text-gray-600">Historia haitahifadhiwa.</span>
+                <button
+                  onClick={() => { setIsGuest(false); setGuestPhone(null); setShowAuthModal(true); setAuthMode('register') }}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 underline transition-colors"
+                >
+                  Jisajili kuhifadhi
+                </button>
+              </div>
+            )}
             <form onSubmit={sendMessage} style={{ flexShrink: 0 }} className="p-4 border-t border-gray-800 bg-gray-900">
               <div className="flex gap-2">
                 <input
                   type="text" placeholder="Andika ujumbe..." value={input}
-                  onChange={e => setInput(e.target.value)} disabled={loading || showAuthModal}
+                  onChange={e => setInput(e.target.value)} disabled={loading || (showAuthModal && !isGuest)}
                   className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
                 />
                 <button
@@ -1103,9 +1243,9 @@ export default function CustomerChat() {
                 </button>
               </div>
               <p className="text-center text-gray-600 text-xs mt-2">
-                WakalaBot inaweza kukosea. Thibitisha taarifa muhimu.
+                Wakalabot inaweza kukosea. Thibitisha taarifa muhimu.
               </p>
-              {slug && (
+              {slug && !isGuest && (
                 <p className="text-center mt-1">
                   <button
                     onClick={() => navigate('/chat')}

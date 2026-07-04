@@ -46,6 +46,7 @@ class ChatRequest(BaseModel):
     customer_phone: str
     customer_name: Optional[str] = None
     tenant_slug: str
+    is_guest: bool = False
 
 
 class ChatResponse(BaseModel):
@@ -191,18 +192,23 @@ async def chat_message(
     tenant = await _get_tenant_by_slug(body.tenant_slug, db)
     await _check_wallet(tenant.id, db)
 
-    # ── Resolve customer identity — token is mandatory, no unverified fallback ──
-    if not body.customer_token:
+# ── Resolve customer identity ──────────────────────────────────────────────
+    if body.is_guest:
+        # Guest mode — no account, no token, phone is a session UUID prefixed guest_
+        resolved_phone = body.customer_phone  # e.g. guest_1718xxx_abc123
+        resolved_name = body.customer_name or None
+    elif not body.customer_token:
         raise HTTPException(
             status_code=401,
             detail="Tafadhali ingia kwanza ili kuanza mazungumzo."
         )
-    try:
-        payload = decode_customer_token(body.customer_token)
-        resolved_phone = payload["phone"]
-        resolved_name = payload["name"]
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid customer token")
+    else:
+        try:
+            payload = decode_customer_token(body.customer_token)
+            resolved_phone = payload["phone"]
+            resolved_name = payload["name"]
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid customer token")
 
     try:
         effective_ai_mode = await _resolve_ai_mode(tenant, db)
@@ -214,6 +220,7 @@ async def chat_message(
             customer_name=resolved_name,
             biz_name=tenant.biz_name,
             ai_mode=effective_ai_mode,
+            is_guest=body.is_guest,
         )
 
     except APITimeoutError:

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import re
 import uuid
 from typing import Any, List, Optional
@@ -24,24 +25,24 @@ from app.core import settings
 from app.models import Conversation, KnowledgeBase, Message, Notification, Transaction, Wallet
 from app.tools import TOOLS, ToolExecutor
 
-HISTORY_WINDOW = 6
+HISTORY_WINDOW = 10
 MAX_TOOL_ROUNDS = 5
 
 # ── Pricing ───────────────────────────────────────────────────────────────────
 PRICING = {
     "eco": {
         "model": "gemini-3.1-flash-lite",
-        "input_per_1k":  0.00025,   # $0.25 per 1 Million tokens
-        "output_per_1k": 0.00150,   # $1.50 per 1 Million tokens
+        "input_per_1k":  0.00025,
+        "output_per_1k": 0.00150,
     },
     "smart": {
         "model": "gemini-3.5-flash",
-        "input_per_1k":  0.00150,   # $1.50 per 1 Million tokens
-        "output_per_1k": 0.00900,   # $9.00 per 1 Million tokens
+        "input_per_1k":  0.00150,
+        "output_per_1k": 0.00900,
     },
 }
 
-COIN_VALUE_USD = 0.000300  
+COIN_VALUE_USD = 0.000300
 
 _IMAGE_TAG_RE = re.compile(r"\[IMAGE_URL:\s*(https?://[^\]]+)\]", re.IGNORECASE)
 _FORCE_IMAGE_RE = re.compile(r"\bFORCE_IMAGE\b", re.IGNORECASE)
@@ -61,8 +62,6 @@ def _extract_image(text: str) -> tuple[Optional[str], str]:
     return url, clean
 
 
-import math
-
 def _calculate_coins(
     prompt_tokens: int, completion_tokens: int, mode: str
 ) -> tuple[int, float]:
@@ -71,12 +70,10 @@ def _calculate_coins(
         (prompt_tokens / 1000) * pricing["input_per_1k"]
         + (completion_tokens / 1000) * pricing["output_per_1k"]
     )
-    # ceil ensures we never round down into a loss on any individual message
     return max(1, math.ceil(usd / COIN_VALUE_USD)), usd
 
 
 def _normalize_schema(schema: dict) -> dict:
-    """Convert lowercase JSON schema types to uppercase strings for Google SDK."""
     if not isinstance(schema, dict):
         return schema
     new_schema = schema.copy()
@@ -92,7 +89,6 @@ def _normalize_schema(schema: dict) -> dict:
 
 
 def _get_native_tools() -> list[types.Tool]:
-    """Translate standard JSON tool definitions into native Google FunctionDeclarations."""
     declarations = []
     for t in TOOLS:
         f = t["function"]
@@ -108,8 +104,6 @@ def _get_native_tools() -> list[types.Tool]:
 
 
 def _extract_text(response) -> str:
-    """Safely pull text from a response, ignoring function_call parts.
-    Prevents the 'non-text parts' SDK warning and avoids silently empty replies."""
     try:
         if not response.candidates:
             return ""
@@ -120,9 +114,8 @@ def _extract_text(response) -> str:
         return ""
 
 
+# ── Tool sets ─────────────────────────────────────────────────────────────────
 
-
-# Tools always available — cover 90% of actual usage
 _CORE_TOOL_NAMES = {
     "get_product_catalog", "get_service_catalog", "get_product_by_name",
     "get_service_by_name", "get_shop_info", "check_stock",
@@ -130,7 +123,6 @@ _CORE_TOOL_NAMES = {
     "calculate_order_total", "get_customer_history", "log_unanswered_question",
 }
 
-# Tools only loaded when conversation hints they might be needed
 _EXTENDED_TOOL_NAMES = {
     "calculate_delivery_cost", "create_notification", "escalate_to_human",
     "generate_insight", "fetch_business_website", "search_web", "context_restore",
@@ -138,29 +130,16 @@ _EXTENDED_TOOL_NAMES = {
 
 
 def _get_tools_for_context(user_input: str, history_text: str) -> list[types.Tool]:
-    """Load core tools, and append extended tools only when keywords match."""
     combined_text = (user_input + history_text).lower()
-    
     needs_extended = any(kw in combined_text for kw in [
         "delivery", "deliver", "mkopo", "escalat", "website", "tovuti",
         "internet", "search", "hasira", "angry", "complaint",
     ])
-    
-    # 1. Filter tools strictly using your sets
-    if needs_extended:
-        # Include BOTH Core and Extended tools
-        tool_set = [
-            t for t in TOOLS 
-            if t["function"]["name"] in _CORE_TOOL_NAMES 
-            or t["function"]["name"] in _EXTENDED_TOOL_NAMES
-        ]
-    else:
-        # Include ONLY Core tools to minimize token cost
-        tool_set = [
-            t for t in TOOLS if t["function"]["name"] in _CORE_TOOL_NAMES
-        ]
-        
-    # 2. Build the native declarations list
+    tool_set = [
+        t for t in TOOLS
+        if t["function"]["name"] in _CORE_TOOL_NAMES
+        or (needs_extended and t["function"]["name"] in _EXTENDED_TOOL_NAMES)
+    ]
     declarations = []
     for t in tool_set:
         f = t["function"]
@@ -170,7 +149,6 @@ def _get_tools_for_context(user_input: str, history_text: str) -> list[types.Too
             description=f["description"],
             parameters=norm_params,
         ))
-        
     return [types.Tool(function_declarations=declarations)]
 
 
@@ -268,7 +246,6 @@ class AIEngine:
 
         coins, usd = _calculate_coins(prompt_tokens, completion_tokens, mode)
 
-        # Check active subscription first
         now = datetime.now(timezone.utc)
         sub_result = await db.execute(
             select(Subscription).where(
@@ -284,11 +261,6 @@ class AIEngine:
             usage_pct = (sub.messages_used / sub.messages_included) * 100
 
             if sub.messages_used >= sub.messages_included:
-                from app.sms import send_sms
-                from app.models import Tenant as TenantModel
-                t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
-                if t and t.phone:
-                    await send_sms(t.phone, f"⚠️ Mazungumzo ya mpango wako yamefika kikomo ({sub.messages_included}). Nunua coins za ziada.")
                 db.add(Notification(
                     tenant_id=tenant_id,
                     type="insight",
@@ -299,16 +271,31 @@ class AIEngine:
                     ),
                     is_read=False,
                 ))
-            elif usage_pct >= 75 and (sub.messages_used - 1) / sub.messages_included * 100 < 75:
-                # Crossed the 75% threshold exactly this message — send once
                 from app.sms import send_sms
                 from app.models import Tenant as TenantModel
-                t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
+                t = (await db.execute(
+                    select(TenantModel).where(TenantModel.id == tenant_id)
+                )).scalar_one_or_none()
                 if t and t.phone:
-                    await send_sms(t.phone, f"📊 Umetumia {sub.messages_used}/{sub.messages_included} mazungumzo (75%) ya mpango wako wa mwezi huu.")
-            
-            else:
-                db.add(Transaction(
+                    await send_sms(
+                        t.phone,
+                        f"⚠️ Mazungumzo ya mpango wako yamefika kikomo "
+                        f"({sub.messages_included}). Nunua coins za ziada."
+                    )
+            elif usage_pct >= 75 and (sub.messages_used - 1) / sub.messages_included * 100 < 75:
+                from app.sms import send_sms
+                from app.models import Tenant as TenantModel
+                t = (await db.execute(
+                    select(TenantModel).where(TenantModel.id == tenant_id)
+                )).scalar_one_or_none()
+                if t and t.phone:
+                    await send_sms(
+                        t.phone,
+                        f"📊 Umetumia {sub.messages_used}/{sub.messages_included} "
+                        f"mazungumzo (75%) ya mpango wako wa mwezi huu."
+                    )
+
+            db.add(Transaction(
                 tenant_id=tenant_id,
                 wallet_id=(await db.execute(
                     select(Wallet.id).where(Wallet.tenant_id == tenant_id)
@@ -321,16 +308,16 @@ class AIEngine:
                 note=f"Subscription ({sub.plan_id}) message {sub.messages_used}/{sub.messages_included}",
             ))
             return
-            
 
         # No active subscription — fall back to coin deduction
         result = await db.execute(select(Wallet).where(Wallet.tenant_id == tenant_id))
         wallet = result.scalar_one_or_none()
         if wallet is None:
             return
+
         was_above_threshold = wallet.balance > 50
         wallet.balance = max(0, wallet.balance - coins)
-        
+
         db.add(Transaction(
             tenant_id=tenant_id,
             wallet_id=wallet.id,
@@ -345,15 +332,25 @@ class AIEngine:
         if wallet.balance <= 0:
             from app.sms import send_sms
             from app.models import Tenant as TenantModel
-            t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
+            t = (await db.execute(
+                select(TenantModel).where(TenantModel.id == tenant_id)
+            )).scalar_one_or_none()
             if t and t.phone:
-                await send_sms(t.phone, "⚠️ Coins zako zimeisha. Nunua coins za ziada ili AI iendelee kufanya kazi.")
+                await send_sms(
+                    t.phone,
+                    "⚠️ Coins zako zimeisha. Nunua coins za ziada ili AI iendelee kufanya kazi."
+                )
         elif wallet.balance <= 50 and was_above_threshold:
             from app.sms import send_sms
             from app.models import Tenant as TenantModel
-            t = (await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))).scalar_one_or_none()
+            t = (await db.execute(
+                select(TenantModel).where(TenantModel.id == tenant_id)
+            )).scalar_one_or_none()
             if t and t.phone:
-                await send_sms(t.phone, f"📊 Salio lako limefika coins {wallet.balance}. Fikiria kuongeza coins.")
+                await send_sms(
+                    t.phone,
+                    f"📊 Salio lako limefika coins {wallet.balance}. Fikiria kuongeza coins."
+                )
 
     async def get_answer(
         self,
@@ -364,6 +361,7 @@ class AIEngine:
         customer_name: Optional[str] = None,
         biz_name: str = "our business",
         ai_mode: str = "eco",
+        is_guest: bool = False,
     ) -> tuple[str, list[str], Message]:
 
         # ── 1. Conversation setup ───────────────────────────────────────────
@@ -376,7 +374,7 @@ class AIEngine:
 
         history = await self._load_history(db, conv.id)
 
-        # ── Fetch active customer notice ─────────────────────────────
+        # ── 2. Fetch active customer notice ─────────────────────────────────
         notice_result = await db.execute(
             select(KnowledgeBase).where(
                 KnowledgeBase.tenant_id == tenant_id,
@@ -389,7 +387,7 @@ class AIEngine:
             if notice_row else None
         )
 
-        # ── 2. Tool executor ────────────────────────────────────────────────
+        # ── 3. Tool executor ────────────────────────────────────────────────
         executor = ToolExecutor(
             db=db,
             tenant_id=tenant_id,
@@ -398,7 +396,7 @@ class AIEngine:
             use_langchain=self._use_langchain,
         )
 
-        # ── 3. System prompt ────────────────────────────────────────────────
+        # ── 4. System prompt building blocks ────────────────────────────────
         post_deal = ""
         if history:
             recent_ai = [msg.content for msg in history if msg.role == "assistant"]
@@ -414,59 +412,69 @@ class AIEngine:
             else "Customer name: unknown — ask naturally only when they want to order."
         )
 
-        notice_block = f"""
-9. ACTIVE NOTICE.
-The merchant has posted this notice to all customers:
-"{active_notice}"
-Mention this notice naturally in your FIRST reply to the customer.
-If the notice affects their question (e.g. delivery paused, shop closed),
-address it directly and prioritize it over other information.
-""" if active_notice else ""
+        # Notice block — empty string when no notice active (zero token cost)
+        notice_block = (
+            f"\n9. ACTIVE NOTICE.\n"
+            f'The merchant has posted this notice to all customers: "{active_notice}"\n'
+            f"Mention this notice naturally in your FIRST reply to the customer.\n"
+            f"If the notice affects their question (e.g. delivery paused, shop closed), "
+            f"address it directly and prioritize it over other information.\n"
+        ) if active_notice else ""
 
-        system_prompt = f"""You are a sharp, warm customer service agent for {biz_name} in Tanzania.
-{customer_ctx}{post_deal}{notice_block}
+        # Auth rule — tells the agent what it does and doesn't know about this customer
+        if is_guest:
+            auth_rule = (
+                "\n10. CUSTOMER STATUS — GUEST (no account).\n"
+                "This customer is chatting WITHOUT an account. Their real phone number is UNKNOWN.\n"
+                "- Do NOT ask for a phone number or name until you see clear buying intent.\n"
+                "- When buying intent appears, ask politely:\n"
+                f'  "Vizuri! Ili {biz_name} iweze kuwasiliana nawe, tafadhali nipe jina lako na namba yako ya simu."\n'
+                "- Pass the phone number they give you as 'customer_real_phone' when calling save_lead.\n"
+                "- NEVER assume you already have their phone number — you do not.\n"
+                "- If they decline to share their number, respect that and continue helping without it.\n"
+            )
+        else:
+            auth_rule = (
+                "\n10. CUSTOMER STATUS — REGISTERED (has account).\n"
+                "This customer signed in with their real phone number — it is already in the system.\n"
+                "- NEVER ask for their phone number again. Asking again is annoying and unnecessary.\n"
+                "- Ask for their name only if unknown and only when naturally needed (e.g. at order time).\n"
+            )
 
-ABSOLUTE RULES:
+        # ── 5. Assemble system prompt ────────────────────────────────────────
+        system_prompt = (
+            f"You are a sharp, warm customer service agent for {biz_name} in Tanzania.\n"
+            f"{customer_ctx}{post_deal}{notice_block}{auth_rule}\n"
+            f"\nABSOLUTE RULES:\n"
+            f"\n1. NEVER GUESS BUSINESS DATA.\n"
+            f"Always call a tool before answering questions about products, services, prices,\n"
+            f"stock, location, hours, or delivery. If the tool returns found=false, tell the\n"
+            f"customer that item or info is not available. Never invent any price, stock count,\n"
+            f"or business detail.\n"
+            f"\n2. LANGUAGE.\n"
+            f"Default Swahili. Match customer's language exactly.\n"
+            f"One honorific per reply maximum ('boss', 'mkuu').\n"
+            f"\n3. PURCHASE FLOW.\n"
+            f"- Confirm item and price from tool data.\n"
+            f"- If customer name unknown: ask naturally before saving lead.\n"
+            f"- Once name known and intent clear: call save_lead immediately.\n"
+            f'- After lead saved: "Biashara itawasiliana nawe hivi karibuni." Close the topic.\n'
+            f"\n4. IMAGES.\n"
+            f"Only send [IMAGE_URL: url] when customer says 'picha', 'onyesha', 'show me', 'nitumie picha'.\n"
+            f"Get URL from tool result image_url field. Never invent URLs.\n"
+            f"Place [IMAGE_URL: url] alone on the last line of your reply.\n"
+            f"\n5. FAREWELLS.\n"
+            f"'bye', 'nakuaga', 'baadaye' → one short warm farewell, stop.\n"
+            f"\n6. ESCALATION.\n"
+            f"Angry or complex issue → escalate_to_human tool.\n"
+            f"\n7. INSIGHTS.\n"
+            f"Valuable observations → save_customer_note or generate_insight.\n"
+            f"\n8. DISCLAIMER.\n"
+            f"Add exactly once, at the end of your very first reply only:\n"
+            f"_WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._\n"
+        )
 
-1. NEVER GUESS BUSINESS DATA.
-Always call a tool before answering questions about products, services, prices,
-stock, location, hours, or delivery. If the tool returns found=false, tell the
-customer that item or info is not available. Never invent any price, stock count,
-or business detail.
-
-2. LANGUAGE.
-Default Swahili. Match customer's language exactly.
-One honorific per reply maximum ('boss', 'mkuu').
-
-3. PURCHASE FLOW.
-- Confirm item and price from tool data.
-- If customer name unknown: ask naturally before saving lead.
-- Once name known and intent clear: call save_lead immediately.
-- After lead saved: "Biashara itawasiliana nawe hivi karibuni." Close the topic.
-
-4. IMAGES.
-Only send [IMAGE_URL: url] when customer says 'picha', 'onyesha', 'show me', 'nitumie picha'.
-Get URL from tool result image_url field. Never invent URLs.
-Place [IMAGE_URL: url] alone on the last line of your reply.
-
-5. FAREWELLS.
-'bye', 'nakuaga', 'baadaye' → one short warm farewell, stop.
-
-6. ESCALATION.
-Angry or complex issue → escalate_to_human tool.
-
-7. INSIGHTS.
-Valuable observations → save_customer_note or generate_insight.
-
-8. DISCLAIMER.
-Add exactly once, at the end of your very first reply only:
-_WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
-
-
-
-"""
-
-        # ── 4. Build native message content arrays ──────────────────────────
+        # ── 6. Build message history for the model ──────────────────────────
         contents: list[types.Content] = []
         for msg in history:
             content_str = msg.content or ""
@@ -489,7 +497,7 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
 
         history_text = " ".join([msg.content for msg in history if msg.content])
 
-        # ── 5. Agent loop — multi-round, AFC disabled ───────────────────────
+        # ── 7. Agent loop — multi-round, AFC disabled ───────────────────────
         model_name = PRICING.get(ai_mode, PRICING["eco"])["model"]
         total_prompt = 0
         total_completion = 0
@@ -497,7 +505,6 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
         answer = ""
 
         try:
-            # 👇 GENERATE DYNAMIC TOOLS FOR THE FIRST CALL
             dynamic_tools = _get_tools_for_context(user_input, history_text)
 
             response = await self.client.aio.models.generate_content(
@@ -508,7 +515,9 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
                     temperature=0.3,
                     max_output_tokens=1024,
                     system_instruction=system_prompt,
-                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                        disable=True
+                    ),
                 )
             )
             if response.usage_metadata:
@@ -518,7 +527,6 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
             rounds = 0
             while response.function_calls and rounds < MAX_TOOL_ROUNDS:
                 rounds += 1
-                # Retain the model's turn (incl. thought signatures) in history
                 contents.append(response.candidates[0].content)
 
                 for fc in response.function_calls:
@@ -538,7 +546,6 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
                         )
                     )
 
-                # Tools remain available every round — model may chain calls
                 response = await self.client.aio.models.generate_content(
                     model=model_name,
                     contents=contents,
@@ -547,7 +554,9 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
                         temperature=0.3,
                         max_output_tokens=512,
                         system_instruction=system_prompt,
-                        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                        automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                            disable=True
+                        ),
                     )
                 )
                 if response.usage_metadata:
@@ -575,13 +584,13 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
             await db.refresh(fallback_entry)
             return fallback_msg, [], fallback_entry
 
-        # ── 6. Deduct coins ──────────────────────────────────────────────────
+        # ── 8. Deduct coins ──────────────────────────────────────────────────
         if total_prompt > 0:
             await self._deduct_coins(
                 db, tenant_id, total_prompt, total_completion, ai_mode
             )
 
-        # ── 7. Normalize raw Cloudinary URLs ───────────────────────────────────
+        # ── 9. Normalize raw Cloudinary URLs ────────────────────────────────
         if not _IMAGE_TAG_RE.search(answer):
             raw_m = _RAW_CLOUDINARY_RE.search(answer)
             if raw_m:
@@ -589,7 +598,7 @@ _WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._
                 answer = _RAW_CLOUDINARY_RE.sub("", answer).strip()
                 answer = f"{answer}\n[IMAGE_URL: {raw_url}]"
 
-        # ── 8. Persist messages ─────────────────────────────────────────────
+        # ── 10. Persist messages ─────────────────────────────────────────────
         db.add(Message(conversation_id=conv.id, role="user", content=user_input))
         ai_image_url, ai_clean_content = _extract_image(answer)
 

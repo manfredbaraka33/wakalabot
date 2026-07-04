@@ -29,10 +29,11 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
 
-    #-----NextSMS
+    #-----NextSMS------------
     NEXTSMS_USERNAME: str = ""
     NEXTSMS_PASSWORD: str = ""
     NEXTSMS_SENDER_ID: str = ""
+    NEXTSMS_DRY_RUN: bool = False
 
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parents[1] / ".env"),

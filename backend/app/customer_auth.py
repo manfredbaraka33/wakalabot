@@ -8,16 +8,17 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from app.limiter import limiter
 from jose import jwt
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select,func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import settings
 from app.db import get_db
-from app.models import Customer
+from app.models import Customer,OTPCode
 
 import random
-import string
-from app.models import NumberClaim
+import secrets
+
+from app.sms import send_sms
 
 router = APIRouter(prefix="/customer", tags=["customer-auth"])
 
@@ -73,36 +74,130 @@ class CustomerOut(BaseModel):
     phone: str
     token: str
 
+class RequestOTPRequest(BaseModel):
+    phone: str = Field(..., min_length=9, max_length=20)
+
+
+class VerifyOTPRequest(BaseModel):
+    phone: str
+    code: str = Field(..., min_length=6, max_length=6)
+    name: str = Field(..., min_length=2, max_length=100)
+    password: str = Field(..., min_length=6, max_length=100)
+
+
+def _normalize_phone(phone: str) -> str:
+    p = phone.strip().replace(" ", "").replace("+", "")
+    if p.startswith("0"):
+        p = "255" + p[1:]
+    elif not p.startswith("255"):
+        p = "255" + p
+    return p
+
+
+
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/register", response_model=CustomerOut)
+@router.post("/request-otp")
 @limiter.limit("5/minute")
-async def register(request: Request, payload: CustomerRegister, db: AsyncSession = Depends(get_db)):
-    # Normalize phone
-    phone = payload.phone.strip().replace(" ", "")
+async def request_otp(
+    request: Request,
+    payload: RequestOTPRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    phone = _normalize_phone(payload.phone)
 
-    # Check existing
-    existing = await db.execute(
-        select(Customer).where(Customer.phone == phone)
+    # 1. Rate limiting check per phone number (Defensive cap)
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+    recent = await db.scalar(
+        select(func.count(OTPCode.id)).where(
+            OTPCode.phone == phone,
+            OTPCode.created_at >= one_hour_ago,
+        )
     )
-    if existing.scalar_one_or_none():
+    if recent and recent >= 3:
         raise HTTPException(
-            status_code=409,
-            detail="Nambari hii ya simu tayari imesajiliwa. Ingia badala yake."
+            status_code=429,
+            detail="Umefikia kikomo cha kuomba OTP. Jaribu tena baada ya saa moja.",
         )
 
-    customer = Customer(
-        name=payload.name.strip().title(),
+    # FIX: Cryptographically secure 6-digit OTP generation
+    code = "".join(secrets.choice("0123456789") for _ in range(6))
+    
+    db.add(OTPCode(
         phone=phone,
-        password_hash=_hash(payload.password),
+        code=code,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        used=False,
+    ))
+    await db.commit()
+
+    sent = await send_sms(
+        phone,
+        f"Nambari yako ya uthibitisho ya WakalaBot ni {code}. "
+        f"Inaisha muda baada ya dakika 10. Kama hukuomba hii, puuza ujumbe huu."
+    )
+    if not sent:
+        raise HTTPException(status_code=503, detail="Imeshindwa kutuma OTP. Tafadhali jaribu tena.")
+
+    return {"status": "sent"}
+
+
+@router.post("/verify-otp")
+@limiter.limit("5/minute")
+async def verify_otp(
+    request: Request,
+    payload: VerifyOTPRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    phone = _normalize_phone(payload.phone)
+
+    # FIX: Prevent account takeover by verifying if the user already exists first
+    existing = await db.execute(select(Customer).where(Customer.phone == phone))
+    customer = existing.scalar_one_or_none()
+    if customer:
+        raise HTTPException(
+            status_code=400, 
+            detail="Nambari hii ya simu tayari imesajiliwa. Tafadhali ingia au ubadili nenosiri."
+        )
+
+    # FIX: Added .with_for_update() to prevent database race conditions
+    result = await db.execute(
+        select(OTPCode)
+        .where(
+            OTPCode.phone == phone,
+            OTPCode.code == payload.code.strip(),
+            OTPCode.used == False,
+        )
+        .order_by(OTPCode.created_at.desc())
+        .limit(1)
+        .with_for_update() 
+    )
+    otp = result.scalar_one_or_none()
+
+    if not otp:
+        raise HTTPException(status_code=400, detail="Nambari ya OTP si sahihi.")
+    if otp.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Nambari ya OTP imeisha muda. Omba mpya.")
+
+    # Mark OTP as used immediately
+    otp.used = True
+
+    # Safely create the new user profile
+    customer = Customer(
+        name=payload.name.strip(),
+        phone=phone,
+        password_hash=_hash(payload.password),  
     )
     db.add(customer)
+    await db.flush()
+
     await db.commit()
     await db.refresh(customer)
 
-    token = _make_token(str(customer.id), customer.phone, customer.name)
-    return CustomerOut(id=str(customer.id), name=customer.name, phone=customer.phone, token=token)
+    token = _make_token(str(customer.id), customer.phone, customer.name)  
+    return {"token": token, "name": customer.name, "phone": customer.phone}
+
 
 
 @router.post("/login", response_model=CustomerOut)
@@ -122,87 +217,6 @@ async def login(request: Request, payload: CustomerLogin, db: AsyncSession = Dep
     return CustomerOut(id=str(customer.id), name=customer.name, phone=customer.phone, token=token)
 
 
-class NumberClaimRequest(BaseModel):
-    phone: str = Field(..., min_length=9, max_length=20)
-    claimant_name: str = Field(..., min_length=2, max_length=100)
-    claimant_contact: str = Field(..., min_length=5, max_length=200,
-        description="WhatsApp number or email where admin can reach you")
-
-
-class NumberClaimOut(BaseModel):
-    claim_code: str
-    whatsapp_number: str
-    message: str
-
-def _generate_claim_code() -> str:
-    return "WKB-" + "".join(random.choices(string.digits, k=6))
-
-
-@router.post("/claim-number", response_model=NumberClaimOut)
-@limiter.limit("3/minute")
-async def claim_number(
-    request: Request,
-    payload: NumberClaimRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Submit a claim that a phone number belongs to you."""
-    phone = payload.phone.strip().replace(" ", "")
-
-    # Check number actually exists in system
-    existing = await db.execute(
-        select(Customer).where(Customer.phone == phone)
-    )
-    if not existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=404,
-            detail="Nambari hii haipo kwenye mfumo wetu."
-        )
-
-    # Check no pending claim already
-    pending = await db.execute(
-        select(NumberClaim).where(
-            NumberClaim.phone == phone,
-            NumberClaim.status == "pending",
-        )
-    )
-    if pending.scalar_one_or_none():
-        raise HTTPException(
-            status_code=409,
-            detail="Madai tayari yako kwa nambari hii. Subiri majibu."
-        )
-
-    # Generate unique claim code
-    code = _generate_claim_code()
-    while True:
-        existing_code = await db.execute(
-            select(NumberClaim).where(NumberClaim.claim_code == code)
-        )
-        if not existing_code.scalar_one_or_none():
-            break
-        code = _generate_claim_code()
-
-    claim = NumberClaim(
-        phone=phone,
-        claimant_name=payload.claimant_name.strip().title(),
-        claimant_contact=payload.claimant_contact.strip(),
-        claim_code=code,
-        status="pending",
-    )
-    db.add(claim)
-    await db.commit()
-    await db.refresh(claim)
-
-    return NumberClaimOut(
-        claim_code=code,
-        whatsapp_number=ADMIN_WHATSAPP,
-        message=(
-            f"Madai yako yamesajiliwa. Tuma neno hili kwa WhatsApp "
-            f"{ADMIN_WHATSAPP}: '{code} - {payload.claimant_name}' "
-            f"na tutakupigia simu kukuthibitisha."
-        ),
-    )
-
-
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=100)
@@ -212,6 +226,7 @@ class CustomerUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=6)
+    code: str = Field(..., min_length=6, max_length=6)
 
 
 async def get_current_customer(
@@ -272,6 +287,33 @@ async def change_password(
 ) -> dict:
     if not _verify(payload.current_password, customer.password_hash):
         raise HTTPException(status_code=400, detail="Neno la siri la sasa si sahihi.")
+    
+    # -------------------------------------------------------------------------
+    # OTP VERIFICATION PATCH: Validate token code before updating password
+    # -------------------------------------------------------------------------
+    normalized_phone = _normalize_phone(customer.phone)
+
+    result = await db.execute(
+            select(OTPCode)
+            .where(
+                OTPCode.phone == normalized_phone,  # <-- Crucial update here
+                OTPCode.code == payload.code.strip(),
+                OTPCode.used == False,
+            )
+            .order_by(OTPCode.created_at.desc())
+            .limit(1)
+            .with_for_update()
+        )
+    otp = result.scalar_one_or_none()
+
+    if not otp:
+        raise HTTPException(status_code=400, detail="Nambari ya OTP si sahihi.")
+    if otp.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Nambari ya OTP imeisha muda. Omba mpya.")
+
+    otp.used = True
+    # -------------------------------------------------------------------------
+
     customer.password_hash = _hash(payload.new_password)
     await db.commit()
     return {"status": "updated"}

@@ -30,6 +30,17 @@ async def send_sms(to_phone: str, message: str) -> bool:
     elif not clean_phone.startswith("255"):
         clean_phone = "255" + clean_phone
 
+    # -------------------------------------------------------------------------
+    # DRY RUN PATCH: Paste this right before the "payload = {" line
+    # -------------------------------------------------------------------------
+    if getattr(settings, "NEXTSMS_DRY_RUN", False):
+        logger.info("\n" + "="*60)
+        logger.info(f"[SMS DRY RUN] Simulated sending to: {clean_phone}")
+        logger.info(f"[SMS DRY RUN] Message content: {message}")
+        logger.info("="*60 + "\n")
+        return True  
+    # -------------------------------------------------------------------------
+
     payload = {
         "from": settings.NEXTSMS_SENDER_ID,
         "to": clean_phone,
