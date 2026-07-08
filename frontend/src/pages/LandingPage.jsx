@@ -84,9 +84,10 @@ export default function LandingPage() {
 
       <section className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
         <div className="max-w-3xl mx-auto space-y-8 mb-12">
+          
           <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold text-indigo-300 uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-            Imetengenezwa kwa Wafanyabiashara wa Tanzania
+            Imetengenezwa kwa ajili ya Wafanyabiashara wa kitanzania
           </span>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight text-white">

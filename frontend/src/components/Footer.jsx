@@ -16,8 +16,12 @@ export default function Footer() {
               <br />
               Tunaziwezesha biashara kwa mifumo ya huduma kwa wateja ya kujiendesha na yenye kasi kubwa.
             </p>
+            <p>
+              <a href="https://www.digitalocean.com/?refcode=052aa5486985&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge">
+              <img src="https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%201.svg" alt="DigitalOcean Referral Badge" /></a>
+            </p>
             <p className="text-xs text-gray-600">
-              © {new Date().getFullYear()} Wakalabot. Haki zote zimehifadhiwa.
+              © {new Date().getFullYear()} Wakalabot Services. Haki zote zimehifadhiwa.
             </p>
           </div>
 
