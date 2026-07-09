@@ -521,10 +521,13 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, 
       <div className="w-full max-h-130 p-4 overflow-auto max-w-sm bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl">
         {activeBiz && (
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800 bg-gray-800/50 rounded-t-2xl">
-            <div className="w-9 h-9 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-              <span className="text-indigo-400 text-sm font-bold">
-                {activeBiz.biz_name.charAt(0).toUpperCase()}
-              </span>
+            <div className="w-10 h-10 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                 
+              {activeBiz.logo_url ? (
+                    <img src={activeBiz.logo_url} alt={activeBiz.biz_name} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <span className="text-indigo-400 text-xs font-bold">{activeBiz.biz_name.charAt(0).toUpperCase()}</span>
+                  )}
             </div>
             <div>
               <p className="text-white text-sm font-semibold">{activeBiz.biz_name}</p>
