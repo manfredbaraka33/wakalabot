@@ -6,6 +6,7 @@ import {
 import Footer from '../components/Footer'
 import WakalaLogo from '../components/Wakalalogo'
 
+
 const FEATURES = [
   {
     icon: MessageSquareCode,
@@ -66,6 +67,8 @@ function FeatureCard({ icon: Icon, title, description, color, bg }) {
 }
 
 export default function LandingPage() {
+
+
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
       <nav className="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-10">
@@ -151,6 +154,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      
 
       <section className="px-6 py-16 border-t border-gray-800 bg-gray-900/40">
         <div className="max-w-3xl mx-auto text-center space-y-6">

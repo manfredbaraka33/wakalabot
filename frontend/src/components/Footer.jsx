@@ -52,6 +52,7 @@ export default function Footer() {
                   Contact Us
                   <p>WhatsApp: +255 712 750 468</p>
                   <p>Email: info@wakalabot.co.tz</p>
+                  <p className='mt-3'>Chati nasi hapa: <a href="https://wakalabot.co.tz/chat/wakalabot" className='rounded-2xl p-2 text-amber-50 bg-indigo-600 border border-amber-600'>Wakalabot</a></p>
               
               </li>
             </ul>

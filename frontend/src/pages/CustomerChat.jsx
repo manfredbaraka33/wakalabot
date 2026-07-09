@@ -1051,7 +1051,8 @@ function enterGuestMode() {
                 </p>
               </div>
               {isGuest ? (
-                <button
+                <div className="flex gap-2">
+                  <button
                   onClick={() => {
                     setIsGuest(false)
                     setGuestPhone(null)
@@ -1063,6 +1064,10 @@ function enterGuestMode() {
                 >
                   ← Ingia / Jisajili
                 </button>
+                 <button onClick={toggle} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                    {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               ) : authed && customer && (
                 <div className='flex gap-2'>
                   <button onClick={toggle} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
