@@ -64,6 +64,11 @@ class Tenant(Base):
     business_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     logo_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
 
+    # ── Instagram integration ──────────────────────────────────────────────────
+    instagram_page_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    instagram_access_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    instagram_account_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
 
 
 class Wallet(Base):
@@ -205,7 +210,7 @@ class Conversation(Base):
     created_at: Mapped[object] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-
+    channel: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default="web")
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="conversations")
     messages: Mapped[list["Message"]] = relationship(
         "Message", back_populates="conversation", cascade="all, delete-orphan",

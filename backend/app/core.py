@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     NEXTSMS_SENDER_ID: str = ""
     NEXTSMS_DRY_RUN: bool = False
 
+
+    META_APP_ID: str = ""
+    META_APP_SECRET: str = ""
+    META_VERIFY_TOKEN: str = ""        
+    APP_URL: str = "https://wakalabot.co.tz"
+
+
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parents[1] / ".env"),
         env_file_encoding="utf-8",

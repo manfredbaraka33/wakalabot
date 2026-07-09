@@ -19,6 +19,7 @@ from app.support import router as support_router
 from app.superadmin import router as superadmin_router
 from app.notifications import router as notifications_router
 from app.customer_auth import router as customer_auth_router
+from app.instagram import router as instagram_router
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -97,6 +98,7 @@ app.include_router(support_router, prefix="/api/v1")
 app.include_router(superadmin_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(customer_auth_router, prefix="/api/v1")
+app.include_router(instagram_router, prefix="/api/v1")
 
 @app.get("/", response_model=dict)
 async def root():
