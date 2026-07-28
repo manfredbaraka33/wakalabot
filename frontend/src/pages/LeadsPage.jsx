@@ -113,7 +113,7 @@ function ChatModal({ conversationId, customerPhone, onClose }) {
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-indigo-600/20 text-indigo-400' : 'bg-emerald-600/20 text-emerald-400'}`}>
                     {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                   </div>
-                  <div className={`rounded-2xl px-4 py-2 text-sm ${isUser ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-gray-800/80 text-gray-300 border border-gray-700/30 rounded-tl-none'}`}>         
+                  <div className={`rounded-2xl px-4 py-2 text-sm ${isUser ? 'bg-indigo-600 text-gray-50 rounded-tr-none' : 'bg-gray-800/80 text-gray-300 border border-gray-700/30 rounded-tl-none'}`}>         
                      <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={{

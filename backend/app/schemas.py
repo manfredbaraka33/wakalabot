@@ -78,9 +78,16 @@ class ProductResponse(BaseModel):
     name: str
     description: str
     price: float
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    price_display: Optional[str] = None      # "33,000-65,000 TZS" or "45,000 TZS"
+    has_price_range: bool = False
     stock_quantity: int
     category: str
-    image_url: Optional[str]
+    image_url: Optional[str] = None
+    extra_images: Optional[list] = None
+    all_images: Optional[list] = None        # main + extras combined, always populated
+    image_count: int = 0
     is_active: bool
     last_updated: Optional[str] = None
 
@@ -89,9 +96,12 @@ class ProductCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str = Field(default="", max_length=5000)
     price: float = Field(..., ge=0)
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
     stock_quantity: int = Field(..., ge=0)
     category: str = Field(default="product", max_length=50)
     image_url: Optional[str] = Field(default=None, max_length=2048)
+    extra_images: Optional[list] = None
     is_active: bool = True
 
 
@@ -99,9 +109,12 @@ class ProductUpdateRequest(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     description: Optional[str] = Field(default=None, max_length=5000)
     price: Optional[float] = Field(default=None, ge=0)
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
     stock_quantity: Optional[int] = Field(default=None, ge=0)
     category: Optional[str] = Field(default=None, max_length=50)
     image_url: Optional[str] = Field(default=None, max_length=2048)
+    extra_images: Optional[list] = None
     is_active: Optional[bool] = None
 
 

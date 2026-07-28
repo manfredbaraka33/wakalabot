@@ -14,6 +14,12 @@ import RefreshButton from '../components/RefreshButton'
 
 const API = import.meta.env.VITE_API_URL
 
+function formatTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Tool labels for "thinking" badges
 // ─────────────────────────────────────────────────────────────────────────
@@ -351,7 +357,7 @@ function LoginForm({ onSuccess }) {
       {error && <p className="text-red-400 text-xs">{error}</p>}
       <button
         type="submit" disabled={loading || !phone || !password}
-        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold rounded-xl py-3 text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-gray-50 font-semibold rounded-xl py-3 text-sm transition-colors flex items-center justify-center gap-2"
       >
         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
         Ingia
@@ -543,7 +549,6 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, 
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800">
             <WakalaLogo />
             <div>
-              
               <p className="text-gray-400 text-xs">Customer Service AI</p>
             </div>
           </div>
@@ -555,7 +560,7 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, 
             {!showGuestInfo ? (
               <button
                 onClick={() => setShowGuestInfo(true)}
-                className="w-full py-2.5 rounded-xl text-xs text-gray-500 hover:text-gray-300 border border-gray-700/40 hover:border-gray-600 transition-colors"
+                className="w-full py-2.5 rounded-xl text-xs text-gray-50 hover:text-gray-100 bg-blue-600 border border-gray-700/40 hover:border-gray-600 transition-colors"
               >
                 Chati bila kusajili →
               </button>
@@ -593,7 +598,7 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, 
           <div className="flex rounded-lg bg-gray-800 p-1">
             <button
               onClick={() => setAuthMode('login')}
-              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${authMode === 'login' ? 'bg-indigo-600 text-white' : 'text-gray-400'}`}
+              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${authMode === 'login' ? 'bg-indigo-600 text-gray-50' : 'text-gray-400'}`}
             >
               Ingia
             </button>
@@ -755,40 +760,57 @@ function enterGuestMode() {
 
   // ── Load chat history for current customer + business ──────────────────
   async function loadHistory(bizSlug, biz) {
-    const storedCustomer = JSON.parse(localStorage.getItem('wk_customer') || 'null')
-    if (!storedCustomer) {
-      setMessages([{
-        role: 'assistant',
-        content: `Habari! Karibu ${biz.biz_name}. Naweza kukusaidia nini leo?`,
-        image_url: null, id: null,
-      }])
-      return
-    }
-    try {
-      const res = await fetch(
-        `${API}/api/v1/chat/history/${bizSlug}?customer_phone=${encodeURIComponent(storedCustomer.phone)}`,
-        { headers: { 'Authorization': `Bearer ${storedCustomer.token}` } }
-      )
-      if (res.ok) {
-        const data = await res.json()
-        if (data.messages?.length > 0) {
-          setMessages(data.messages.map(m => ({
-            id: m.id || null,
-            role: m.role,
-            content: m.content,
-            image_url: m.image_url || null,
-          })))
-          return
-        }
-      }
-    } catch {}
+  const storedCustomer = JSON.parse(localStorage.getItem('wk_customer') || 'null')
+  if (!storedCustomer) {
     setMessages([{
       role: 'assistant',
-      content: `Habari ${storedCustomer.name}! Karibu ${biz.biz_name}. Naweza kukusaidia nini leo?`,
-      image_url: null, id: null,
+      content: `Habari! Karibu ${biz.biz_name}. Naweza kukusaidia nini leo?`,
+      image_urls: [], 
+      id: null,
+      timestamp: new Date().toISOString(),
     }])
+    return
   }
+  try {
+    const res = await fetch(
+      `${API}/api/v1/chat/history/${bizSlug}?customer_phone=${encodeURIComponent(storedCustomer.phone)}`,
+      { headers: { 'Authorization': `Bearer ${storedCustomer.token}` } }
+    )
+    if (res.ok) {
+      const data = await res.json()
+      if (data.messages?.length > 0) {
+        setMessages(data.messages.map(m => {
+          // Extract embedded image tags and get clean text
+          const { cleanText, extractedImages } = parseMessageContent(m.content || '')
+          
+          // Combine images from raw text, array fields, and legacy single image fields
+          const allImages = [
+            ...extractedImages,
+            ...(Array.isArray(m.image_urls) ? m.image_urls : []),
+            ...(m.image_url ? [m.image_url] : [])
+          ]
 
+          return {
+            id: m.id || null,
+            role: m.role,
+            content: cleanText,
+            image_urls: [...new Set(allImages)], // Remove duplicate URLs
+            timestamp: m.timestamp || m.created_at || new Date().toISOString(),
+          }
+        }))
+        return
+      }
+    }
+  } catch {}
+
+  setMessages([{
+    role: 'assistant',
+    content: `Habari ${storedCustomer.name}! Karibu ${biz.biz_name}. Naweza kukusaidia nini leo?`,
+    image_urls: [], 
+    id: null,
+    timestamp: new Date().toISOString(),
+  }])
+}
   // ── Auth success — close modal, load chat ───────────────────────────────
   function handleAuthSuccess(c) {
     localStorage.setItem('wk_customer', JSON.stringify(c))
@@ -811,63 +833,112 @@ function enterGuestMode() {
   }
 
   // ── Send message ─────────────────────────────────────────────────────────
-  async function doSend(text) {
-    if (!text.trim() || !activeBiz || loading) return
-    if (!authed && !isGuest) {
-      setShowAuthModal(true)
+// Helper function to extract all [IMAGE_URL: ...] tags and clean text
+function parseMessageContent(rawText) {
+  if (!rawText) return { cleanText: '', extractedImages: [] };
+
+  const regex = /\[IMAGE_URL:\s*(https?:\/\/[^\]\s]+)\]/gi;
+  const extractedImages = [];
+  let match;
+
+  while ((match = regex.exec(rawText)) !== null) {
+    extractedImages.push(match[1]);
+  }
+
+  // Remove the [IMAGE_URL: ...] tags from the visible text
+  const cleanText = rawText.replace(regex, '').trim();
+  return { cleanText, extractedImages };
+}
+
+async function doSend(text) {
+  if (!text.trim() || !activeBiz || loading) return
+  if (!authed && !isGuest) {
+    setShowAuthModal(true)
+    return
+  }
+
+  setMessages(prev => [...prev, { 
+    role: 'user',
+    content: text.trim(),
+    image_urls: [],
+    timestamp: new Date().toISOString(),
+  }])
+  setInput('')
+  setLoading(true)
+
+  try {
+    const res = await fetch(`${API}/api/v1/chat/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        isGuest
+          ? {
+              message: text.trim(),
+              customer_phone: guestPhone,
+              tenant_slug: activeBiz.slug,
+              is_guest: true,
+            }
+          : {
+              message: text.trim(),
+              customer_token: customer.token,
+              customer_phone: customer.phone,
+              tenant_slug: activeBiz.slug,
+            }
+      ),
+    })
+
+    if (!res.ok) {
+      const err = await res.json()
+      let errorString = 'Something went wrong.'
+      if (typeof err.detail === 'string') {
+        errorString = err.detail
+      } else if (Array.isArray(err.detail)) {
+        errorString = err.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ')
+      }
+      setMessages(prev => [...prev, {
+        id: null, 
+        role: 'assistant', 
+        content: errorString, 
+        image_urls: [],
+        timestamp: new Date().toISOString(),
+      }])
       return
     }
-    setMessages(prev => [...prev, { role: 'user', content: text.trim(), image_url: null }])
-    setInput('')
-    setLoading(true)
-    try {
-      const res = await fetch(`${API}/api/v1/chat/message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          isGuest
-            ? {
-                message: text.trim(),
-                customer_phone: guestPhone,
-                tenant_slug: activeBiz.slug,
-                is_guest: true,
-              }
-            : {
-                message: text.trim(),
-                customer_token: customer.token,
-                customer_phone: customer.phone,
-                tenant_slug: activeBiz.slug,
-              }
-        ),
-      })
 
-      if (!res.ok) {
-        const err = await res.json()
-        let errorString = 'Something went wrong.'
-        if (typeof err.detail === 'string') {
-          errorString = err.detail
-        } else if (Array.isArray(err.detail)) {
-          errorString = err.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ')
-        }
-        setMessages(prev => [...prev, {
-          id: null, role: 'assistant', content: errorString, image_url: null,
-        }])
-        return
-      }
+    const data = await res.json()
 
-      const data = await res.json()
-      setMessages(prev => [...prev, {
-        id: data.id, role: 'assistant', content: data.reply,
-        image_url: data.image_url || null, tools_used: data.tools_used || [],
-      }])
-    } catch {
-      setMessages(prev => [...prev, {
-        role: 'assistant', content: 'Connection error. Please try again.', image_url: null,
-      }])
-    } finally {
-      setLoading(false)
-    }
+    // 1. Extract all image tags from raw message text and clean the text
+    const { cleanText, extractedImages } = parseMessageContent(data.reply || '')
+
+    // 2. Combine regex images with any images directly returned in API payload
+    const allImages = [
+      ...extractedImages,
+      ...(Array.isArray(data.image_urls) ? data.image_urls : []),
+      ...(data.image_url ? [data.image_url] : [])
+    ]
+
+    // 3. Remove duplicate image links
+    const uniqueImages = [...new Set(allImages)]
+
+    setMessages(prev => [...prev, {
+      id: data.id, 
+      role: 'assistant', 
+      content: cleanText,
+      image_urls: uniqueImages, 
+      tools_used: data.tools_used || [],
+      timestamp: data.timestamp || new Date().toISOString(),
+    }])
+  } catch {
+    setMessages(prev => [...prev, {
+      role: 'assistant', 
+      content: 'Connection error. Please try again.', 
+      image_urls: [],
+      timestamp: new Date().toISOString(),
+    }])
+  } finally {
+    setLoading(false)
   }
+}
 
   function sendMessage(e) { e.preventDefault(); doSend(input) }
 
@@ -1015,8 +1086,9 @@ function enterGuestMode() {
               <div className="w-12 h-12 rounded-2xl bg-gray-800 flex items-center justify-center mx-auto">
                 <BotMessageSquare className="w-6 h-6 text-gray-600" />
               </div>
-              <p className="text-gray-400 text-sm font-medium">Select a business to start chatting</p>
-              <p className="text-gray-600 text-xs">Choose from the directory on the left</p>
+              {/* <p className="text-gray-400 text-sm font-medium">Select a business to start chatting</p>
+              <p className="text-gray-600 text-xs">Choose from the directory on the left</p> */}
+              <p className="text-gray-600 text-xs">Loading chat...</p> 
               <RefreshButton /> <br />
               <Link to='/' className='text-indigo-600'>Home</Link>
             </div>
@@ -1031,7 +1103,7 @@ function enterGuestMode() {
             <div style={{ flexShrink: 0 }} className="px-4 py-3 border-b border-gray-800 bg-gray-900 flex items-center gap-3">
               {slug && !isGuest && (
                 <button onClick={() => navigate('/chat')} className="text-gray-500 hover:text-white transition-colors">
-                  <ArrowLeft className="w-4 h-4" />
+                  {/* <ArrowLeft className="w-4 h-4" /> */}
                 </button>
               )}
               <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
@@ -1081,6 +1153,18 @@ function enterGuestMode() {
                       <span className="text-indigo-400 text-xs font-bold">{customer.name?.charAt(0)}</span>
                     </div>
                   </button>
+                  <button
+                  onClick={() => {
+                    localStorage.removeItem('wk_customer')
+                    setCustomer(null)
+                    setAuthed(false)
+                    setShowAuthModal(true)
+                  }}
+                  className="text-xs text-gray-600 hover:text-red-400 transition-colors shrink-0"
+                  title="Toka"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
                 </div>
               )}
             </div>
@@ -1147,7 +1231,7 @@ function enterGuestMode() {
                     {msg.content && (
                       <div className={`prose prose-invert prose-sm max-w-none px-4 py-2.5 rounded-2xl ${
                         msg.role === 'user'
-                          ? 'bg-indigo-700 text-yellow-100 rounded-br-sm'
+                          ? 'bg-indigo-700 text-gray-50 rounded-br-sm'
                           : 'bg-gray-800 text-white rounded-bl-sm prose-p:text-white prose-strong:text-white'
                       }`}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}
@@ -1166,35 +1250,59 @@ function enterGuestMode() {
                         >{msg.content}</ReactMarkdown>
                       </div>
                     )}
+                    
+                    
 
                     {msg.role === 'assistant' && (
                       <MessageActions messageId={msg.id} content={msg.content} />
                     )}
 
-                    {msg.image_url && (
-                      <div className="relative mt-1">
-                        <img
-                          src={msg.image_url} alt="Product"
-                          className="rounded-xl max-w-full border border-gray-700 block"
-                          onError={e => e.target.style.display = 'none'}
-                        />
-                        <button
-                          onClick={() => downloadImage(msg.image_url)}
-                          className="absolute top-2 right-2 p-1.5 rounded-lg  bg-green-950 text-black hover:bg-indigo-300"
-                          title="Download image"
-                        >
-                          <Download className="w-3.5 h-3 text-green-100" />
-                        </button>
-                        {/* New Expand Button */}
-                        <button
-                          onClick={() => setFullImage(msg.image_url)}
-                          className="absolute top-2 right-10 p-1.5 rounded-lg bg-green-950 text-black hover:bg-indigo-300"
-                          title="View full size"
-                        >
-                          <Maximize className="w-3.5 h-3 text-green-100" />
-                        </button>
-                      </div>
-                    )}
+                    {/* Normalize images to support both single 'image_url' and multiple 'image_urls' */}
+                      {(() => {
+                        const images = Array.isArray(msg.image_urls)
+                          ? msg.image_urls
+                          : msg.image_url
+                            ? [msg.image_url]
+                            : [];
+
+                        if (images.length === 0) return null;
+
+                        return (
+                          <div className={`mt-2 grid gap-2 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                            {images.map((url, idx) => (
+                              <div key={idx} className="relative group rounded-xl overflow-hidden border border-gray-700">
+                                <img
+                                  src={url}
+                                  alt={`Product detail ${idx + 1}`}
+                                  className="rounded-xl w-full max-h-60 object-cover block"
+                                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                                />
+
+                                {/* Action Overlay */}
+                                <div className="absolute top-2 right-2 flex gap-1.5">
+                                  <button
+                                    onClick={() => setFullImage(url)}
+                                    className="p-1.5 rounded-lg bg-green-950 text-black hover:bg-indigo-300 transition-colors"
+                                    title="View full size"
+                                  >
+                                    <Maximize className="w-3.5 h-3.5 text-green-100" />
+                                  </button>
+                                  <button
+                                    onClick={() => downloadImage(url)}
+                                    className="p-1.5 rounded-lg bg-green-950 text-black hover:bg-indigo-300 transition-colors"
+                                    title="Download image"
+                                  >
+                                    <Download className="w-3.5 h-3.5 text-green-100" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                      <p className={`text-[10px] mt-1 text-gray-400 w-full ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                      {msg.timestamp ? formatTime(msg.timestamp) : ''}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -1259,7 +1367,7 @@ function enterGuestMode() {
                     onClick={() => navigate('/chat')}
                     className="text-gray-600 hover:text-gray-400 text-xs transition-colors"
                   >
-                    Tazama biashara nyingine →
+                    {/* Tazama biashara nyingine → */}
                   </button>
                 </p>
               )}

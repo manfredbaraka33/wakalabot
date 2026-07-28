@@ -1,27 +1,32 @@
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select  # type: ignore
-from typing import Optional
 
-from datetime import datetime, timezone
-
-from app.db import get_db
-from app.models import (
-    Tenant, Wallet, LeadEvent, Conversation, MessageFeedback, Message,
-    Subscription, UnansweredQuestion,Customer
-)  # type: ignore
-from app.schemas import MessageFeedbackCreate  # type: ignore
-from app.services import ai_engine
 from app.auth import get_current_tenant
 from app.customer_auth import decode_customer_token
+from app.db import get_db
+from app.models import (  # type: ignore
+    Conversation,
+    Customer,
+    KnowledgeBase,
+    LeadEvent,
+    Message,
+    MessageFeedback,
+    Subscription,
+    Tenant,
+    UnansweredQuestion,
+    Wallet,
+)
+from app.schemas import MessageFeedbackCreate  # type: ignore
+from app.services import ai_engine
 from groq import APITimeoutError
-
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -52,9 +57,14 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     id: str
     reply: str
-    image_url: str | None = None
+    image_urls: list[str] = []
     quick_reply: QuickReply | None = None
     tools_used: list[str] = []
+
+    @property
+    def image_url(self) -> str | None:
+        """Returns the first image URL for legacy frontend compatibility."""
+        return self.image_urls[0] if self.image_urls else None
 
 
 class TenantPublicInfo(BaseModel):
@@ -66,26 +76,37 @@ class TenantPublicInfo(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _extract_image(text: str) -> tuple[str | None, str]:
-    m = _IMAGE_TAG_RE.search(text)
-    url = m.group(1).strip().rstrip(".,;:)!?'\"") if m else None
-    clean = _IMAGE_TAG_RE.sub("", text) if m else text
-    clean = _FORCE_IMAGE_RE.sub("", clean).strip()
-    return url, clean
+def _extract_images(text: str) -> tuple[list[str], str]:
+    """
+    Extracts all image URLs (markdown style or custom tags) 
+    from the reply text and returns the list of URLs and cleaned text.
+    """
+    if not text:
+        return [], ""
+
+    # Matches both standard markdown ![alt](url) and [IMAGE: url] tags
+    pattern = r"!\[.*?\]\((https?://[^\s\)]+)\)|\[IMAGE:\s*(https?://[^\s\]]+)\]"
+    matches = re.findall(pattern, text)
+
+    # Flatten tuples from regex groups
+    image_urls = [m[0] or m[1] for m in matches if m[0] or m[1]]
+    clean_text = re.sub(pattern, "", text).strip()
+
+    return image_urls, clean_text
 
 
 def _parse_quick_reply(text: str) -> tuple[str, QuickReply | None]:
     m = _QUICK_REPLY_RE.search(text)
     if m:
-        options = [o.strip() for o in m.group(1).split('|')]
-        clean = _QUICK_REPLY_RE.sub('', text).strip()
-        return clean, QuickReply(type='buttons', options=options)
+        options = [o.strip() for o in m.group(1).split("|")]
+        clean = _QUICK_REPLY_RE.sub("", text).strip()
+        return clean, QuickReply(type="buttons", options=options)
 
     m = _QUICK_INPUT_RE.search(text)
     if m:
         input_key = m.group(1).strip()
-        clean = _QUICK_INPUT_RE.sub('', text).strip()
-        return clean, QuickReply(type='input', input_key=input_key)
+        clean = _QUICK_INPUT_RE.sub("", text).strip()
+        return clean, QuickReply(type="input", input_key=input_key)
 
     return text, None
 
@@ -101,21 +122,19 @@ async def _get_tenant_by_slug(slug: str, db: AsyncSession) -> Tenant:
 
 
 async def _resolve_ai_mode(tenant: Tenant, db: AsyncSession) -> str:
-    """If an active subscription exists, the plan locks the model tier — this
-    prevents a subscriber from manually switching to 'smart' and getting
-    expensive-model usage for free under their subscription's flat message count.
-    No active subscription → fall back to the tenant's manual eco/smart choice."""
     from app.schemas import SUBSCRIPTION_PLANS
 
     now = datetime.now(timezone.utc)
     sub_result = await db.execute(
-        select(Subscription).where(
+        select(Subscription)
+        .where(
             Subscription.tenant_id == tenant.id,
             Subscription.status == "active",
             Subscription.expires_at > now,
         )
+        .order_by(Subscription.expires_at.desc())
     )
-    sub = sub_result.scalar_one_or_none()
+    sub = sub_result.scalars().first()
     if sub:
         plan = next((p for p in SUBSCRIPTION_PLANS if p["id"] == sub.plan_id), None)
         if plan:
@@ -124,20 +143,20 @@ async def _resolve_ai_mode(tenant: Tenant, db: AsyncSession) -> str:
 
 
 async def _check_wallet(tenant_id: uuid.UUID, db: AsyncSession) -> None:
-    # Check active subscription first — has allowance remaining?
     now = datetime.now(timezone.utc)
     sub_result = await db.execute(
-        select(Subscription).where(
+        select(Subscription)
+        .where(
             Subscription.tenant_id == tenant_id,
             Subscription.status == "active",
             Subscription.expires_at > now,
         )
+        .order_by(Subscription.expires_at.desc())
     )
-    sub = sub_result.scalar_one_or_none()
+    sub = sub_result.scalars().first()
     if sub and sub.messages_used < sub.messages_included:
-        return  # Subscription covers this message
+        return
 
-    # No subscription or allowance exhausted — fall back to coins
     result = await db.execute(
         select(Wallet).where(Wallet.tenant_id == tenant_id)
     )
@@ -183,7 +202,6 @@ async def get_business_directory(
         for t in tenants
     ]
 
-
 @router.post("/chat/message", response_model=ChatResponse)
 async def chat_message(
     body: ChatRequest,
@@ -192,10 +210,8 @@ async def chat_message(
     tenant = await _get_tenant_by_slug(body.tenant_slug, db)
     await _check_wallet(tenant.id, db)
 
-# ── Resolve customer identity ──────────────────────────────────────────────
     if body.is_guest:
-        # Guest mode — no account, no token, phone is a session UUID prefixed guest_
-        resolved_phone = body.customer_phone  # e.g. guest_1718xxx_abc123
+        resolved_phone = body.customer_phone
         resolved_name = body.customer_name or None
     elif not body.customer_token:
         raise HTTPException(
@@ -235,27 +251,33 @@ async def chat_message(
             detail="Samahani, kuna tatizo la muda mfupi. Tafadhali jaribu tena."
         )
 
-    image_url, clean_reply = _extract_image(reply)
+    # Extract ALL image URLs from the reply text instead of just one
+    image_urls, clean_reply = _extract_images(reply)
     clean_reply, quick_reply = _parse_quick_reply(clean_reply)
+
+    # Fallback to message object if no image URLs were found in the text string
+    if not image_urls:
+        if getattr(new_msg, "image_urls", None):
+            image_urls = new_msg.image_urls
+        elif getattr(new_msg, "image_url", None) and new_msg.image_url:
+            image_urls = [new_msg.image_url]
 
     return ChatResponse(
         id=str(new_msg.id),
         reply=clean_reply,
-        image_url=new_msg.image_url,
+        image_urls=image_urls,
         quick_reply=quick_reply,
         tools_used=tools_used,
     )
 
 @router.post("/chat/message/noauth", response_model=ChatResponse)
-async def chat_message(
+async def chat_message_noauth(
     body: ChatRequest,
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
     tenant = await _get_tenant_by_slug(body.tenant_slug, db)
     await _check_wallet(tenant.id, db)
 
-    # ── Resolved customer identity without authentication token ──
-    # Reads fallback metadata directly from the request schema
     resolved_phone = getattr(body, "customer_phone", "guest-anonymous")
     resolved_name = getattr(body, "customer_name", "Mteja")
 
@@ -269,6 +291,7 @@ async def chat_message(
             customer_name=resolved_name,
             biz_name=tenant.biz_name,
             ai_mode=effective_ai_mode,
+            is_guest=True,
         )
 
     except APITimeoutError:
@@ -283,13 +306,19 @@ async def chat_message(
             detail="Samahani, kuna tatizo la muda mfupi. Tafadhali jaribu tena."
         )
 
-    image_url, clean_reply = _extract_image(reply)
+    image_urls, clean_reply = _extract_images(reply)
     clean_reply, quick_reply = _parse_quick_reply(clean_reply)
+
+    if not image_urls:
+        if getattr(new_msg, "image_urls", None):
+            image_urls = new_msg.image_urls
+        elif getattr(new_msg, "image_url", None) and new_msg.image_url:
+            image_urls = [new_msg.image_url]
 
     return ChatResponse(
         id=str(new_msg.id),
         reply=clean_reply,
-        image_url=new_msg.image_url,
+        image_urls=image_urls,
         quick_reply=quick_reply,
         tools_used=tools_used,
     )
@@ -297,7 +326,7 @@ async def chat_message(
 @router.get("/admin/leads")
 async def get_all_global_leads(
     tenant: Tenant = Depends(get_current_tenant),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     stmt = (
         select(LeadEvent, Conversation)
@@ -318,7 +347,7 @@ async def get_all_global_leads(
             "event_type": getattr(lead, "event_type", "intent"),
             "status": getattr(lead, "status", "pending"),
             "product_name": getattr(lead, "product_name", None),
-            "created_at": getattr(lead, "created_at", None).isoformat() if getattr(lead, "created_at", None) else None
+            "created_at": getattr(lead, "created_at", None).isoformat() if getattr(lead, "created_at", None) else None,
         }
         for lead, conv in rows
     ]
@@ -331,23 +360,25 @@ async def submit_feedback(
 ) -> dict:
     try:
         msg_id = uuid.UUID(body.message_id)
-        # Get the actual message to find correct conversation_id
         msg_result = await db.execute(
             select(Message).where(Message.id == msg_id)
         )
         msg = msg_result.scalar_one_or_none()
         if not msg:
-            return {"status": "ok"}  # Silent fail — don't expose errors
-        db.add(MessageFeedback(
-            conversation_id=msg.conversation_id,
-            message_id=msg_id,
-            rating=body.rating,
-            comment=body.comment,
-        ))
+            return {"status": "ok"}
+        db.add(
+            MessageFeedback(
+                conversation_id=msg.conversation_id,
+                message_id=msg_id,
+                rating=body.rating,
+                comment=body.comment,
+            )
+        )
         await db.commit()
     except Exception as e:
-        print(f"Feedback error: {e}")
+        logger.error(f"Feedback error: {e}")
     return {"status": "ok"}
+
 
 @router.get("/chat/history/{slug}")
 async def get_chat_history(
@@ -365,8 +396,6 @@ async def get_chat_history(
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
 
-    # Get this customer's registration date — used to hide pre-existing
-    # conversations that belonged to a previous owner of the same phone number.
     customer_result = await db.execute(
         select(Customer).where(Customer.id == uuid.UUID(customer_id))
     )
@@ -374,34 +403,36 @@ async def get_chat_history(
     customer_since = customer.created_at if customer else None
 
     tenant = await _get_tenant_by_slug(slug, db)
+
+    # Order by newest record first to safely avoid MultipleResultsFound error
     conv_result = await db.execute(
-        select(Conversation).where(
+        select(Conversation)
+        .where(
             Conversation.tenant_id == tenant.id,
             Conversation.customer_phone == verified_phone,
         )
+        .order_by(Conversation.id.desc())
     )
-    conv = conv_result.scalar_one_or_none()
+    conv = conv_result.scalars().first()
     if not conv:
         return {"messages": []}
 
     msgs_query = (
         select(Message)
         .where(Message.conversation_id == conv.id)
-        .order_by(Message.timestamp.asc())
+        .order_by(Message.timestamp.desc())
         .limit(20)
     )
-    # Only show messages sent after the current account was created —
-    # prevents a claim-resolver from reading the previous owner's messages.
     if customer_since:
         msgs_query = msgs_query.where(Message.timestamp >= customer_since)
 
     msgs_result = await db.execute(msgs_query)
-    msgs = msgs_result.scalars().all()
+    msgs = list(reversed(msgs_result.scalars().all()))
     return {
         "messages": [
             {
                 "id": str(m.id),
-                "role": m.role,
+                "role": getattr(m, "role", getattr(m, "sender", "assistant")),
                 "content": m.content,
                 "image_url": m.image_url,
             }
@@ -484,19 +515,25 @@ async def get_chat_notice(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     tenant = await _get_tenant_by_slug(slug, db)
-    
-    
-    from app.models import KnowledgeBase
 
+    # Pick the latest notice safely without crashing if multiple exist
     result = await db.execute(
-        select(KnowledgeBase).where(
+        select(KnowledgeBase)
+        .where(
             KnowledgeBase.tenant_id == tenant.id,
             KnowledgeBase.content.like("__CUSTOMER_NOTICE__%"),
         )
+        .order_by(KnowledgeBase.id.desc())
     )
-    row = result.scalar_one_or_none()
-    
+    row = result.scalars().first()
+
     if not row:
         return {"notice": None}
-        
-    return {"notice": row.content[len("__CUSTOMER_NOTICE__:") :].strip()}
+
+    text = row.content
+    if text.startswith("__CUSTOMER_NOTICE__:"):
+        text = text.removeprefix("__CUSTOMER_NOTICE__:")
+    elif text.startswith("__CUSTOMER_NOTICE__"):
+        text = text.removeprefix("__CUSTOMER_NOTICE__")
+
+    return {"notice": text.strip()}

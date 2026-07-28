@@ -6,6 +6,7 @@ the image is stored in Cloudinary and the secure URL is saved to the DB.
 On create/update, product data is synced to pgvector via ai_engine
 so the RAG system can answer stock-aware queries.
 """
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -23,9 +24,50 @@ from app.utils.storage import delete_image, optimise_url, public_id_from_url, up
 
 router = APIRouter(prefix="/products", tags=["products"])
 
+
+def _serialize(p: Product) -> dict:
+    """Serialize a Product model into a dictionary with all formatted display fields."""
+    all_images = []
+    if p.image_url:
+        all_images.append(p.image_url)
+    if p.extra_images:
+        all_images.extend(p.extra_images)
+
+    # Calculate price display string and price range status
+    if p.price_min is not None and p.price_max is not None:
+        price_display = f"{int(p.price_min):,}–{int(p.price_max):,} TZS"
+        has_range = True
+    else:
+        price_display = f"{int(p.price):,} TZS" if p.price else "Bei kwa ombi"
+        has_range = False
+
+    return {
+        "id": str(p.id),
+        "name": p.name,
+        "description": p.description or "",
+        "price": float(p.price) if p.price else 0.0,
+        "price_min": float(p.price_min) if p.price_min is not None else None,
+        "price_max": float(p.price_max) if p.price_max is not None else None,
+        "price_display": price_display,
+        "has_price_range": has_range,
+        "stock_quantity": p.stock_quantity,
+        "category": p.category,
+        "image_url": p.image_url,
+        "extra_images": p.extra_images or [],
+        "all_images": all_images,
+        "image_count": len(all_images),
+        "is_active": p.is_active,
+        "last_updated": p.last_updated.isoformat() if p.last_updated else None,
+    }
+
+
+def _to_response(p: Product) -> ProductResponse:
+    """Convert a Product instance into the standard API response schema."""
+    return ProductResponse(**_serialize(p))
+
+
 async def update_tenant_master_catalog(db: AsyncSession, tenant_id: uuid.UUID):
     """Refreshes the MASTER_CATALOG knowledge base entry by querying the current DB state."""
-    
     # 1. Fetch the absolute latest product list from the DB
     result = await db.execute(
         select(Product)
@@ -33,23 +75,23 @@ async def update_tenant_master_catalog(db: AsyncSession, tenant_id: uuid.UUID):
         .where(Product.is_active == True)
     )
     products = result.scalars().all()
-    
+
     # 2. Build the exact content string
     lines = [f"{p.name}: {p.price} TZS" for p in products]
     catalog_text = "[MASTER_CATALOG]\n" + "\n".join(lines)
-    
+
     # 3. Find the specific KB entry for the master catalog
     kb_result = await db.execute(
         select(KnowledgeBase).where(
             KnowledgeBase.tenant_id == tenant_id,
-            KnowledgeBase.content.like("[MASTER_CATALOG]%")
+            KnowledgeBase.content.like("[MASTER_CATALOG]%"),
         )
     )
     kb = kb_result.scalar_one_or_none()
-    
+
     # 4. Generate the embedding for the latest content
     new_embedding = await ai_engine._embed(catalog_text)
-    
+
     if kb:
         # Update existing record
         kb.content = catalog_text
@@ -62,49 +104,44 @@ async def update_tenant_master_catalog(db: AsyncSession, tenant_id: uuid.UUID):
             embedding=new_embedding,
         )
         db.add(kb)
-    
+
     # Commit changes so they persist
     await db.commit()
+
 
 async def trigger_catalog_sync(db: AsyncSession, tenant_id: uuid.UUID):
     """Safely trigger the KB catalog update."""
     try:
-        # Call the local function defined above
         await update_tenant_master_catalog(db, tenant_id)
     except Exception as e:
-        # Log the error so the request doesn't crash
         print(f"Catalog sync failed for tenant {tenant_id}: {e}")
 
 
-
-def _kb_text(name: str, price: float, stock: int, description: str, category: str = "product", image_url: Optional[str] = None) -> str:
-    """Canonical text embedded in pgvector for an item.
-    Includes IMAGE_LINK so the AI can surface the URL in WhatsApp replies.
-    """
+def _kb_text(
+    name: str,
+    price: float,
+    price_min: Optional[float],
+    price_max: Optional[float],
+    stock: int,
+    description: str,
+    category: str = "product",
+    image_url: Optional[str] = None,
+) -> str:
+    """Canonical text embedded in pgvector for an item."""
     img_part = f" IMAGE_LINK: {optimise_url(image_url)}" if image_url else ""
+
+    if price_min is not None and price_max is not None:
+        price_str = f"Range {price_min}-{price_max} TZS (Avg {price} TZS)"
+    else:
+        price_str = f"{price} TZS"
+
     if category == "service":
-        return f"Service: {name}, Price: {price} TZS.{img_part}. Description: {description}"
-    
+        return f"Service: {name}, Price: {price_str}.{img_part}. Description: {description}"
+
     return (
-        f"Product: {name}, Price: {price} TZS, Stock: {stock} available."
+        f"Product: {name}, Price: {price_str}, Stock: {stock} available."
         f"{img_part}. Description: {description}"
     )
-
-
-def _to_response(p: Product) -> ProductResponse:
-    return ProductResponse(
-        id=str(p.id),
-        name=p.name,
-        description=p.description,
-        price=float(p.price),
-        stock_quantity=p.stock_quantity,
-        category=p.category, # <-- INSERT THIS LINE
-        image_url=p.image_url,
-        is_active=p.is_active,
-        last_updated=p.last_updated.isoformat() if p.last_updated else None,
-    )
-
-
 
 
 # ── GET /products ─────────────────────────────────────────────────────────────
@@ -128,33 +165,53 @@ async def create_product(
     name: str = Form(..., min_length=1, max_length=255),
     description: str = Form(default="", max_length=5000),
     price: float = Form(..., ge=0),
+    price_min: Optional[float] = Form(default=None),
+    price_max: Optional[float] = Form(default=None),
     stock_quantity: int = Form(..., ge=0),
     category: str = Form(default="product"),
     is_active: bool = Form(default=True),
     image: Optional[UploadFile] = File(default=None),
+    image2: Optional[UploadFile] = File(default=None),
+    image3: Optional[UploadFile] = File(default=None),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> ProductResponse:
-    # Upload image if provided
-    image_url: Optional[str] = None
+
+    # Upload main image
+    main_url = None
     if image and image.filename:
-        try:
-            image_url = await upload_image(image)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        
-    if category == "service":       
+        main_url = await upload_image(image)
+
+    # Upload extra images
+    extra_urls = []
+    for extra in [image2, image3]:
+        if extra and extra.filename:
+            url = await upload_image(extra)
+            extra_urls.append(url)
+
+    # Validate price range if provided
+    if price_min is not None and price_max is not None:
+        if price_min >= price_max:
+            raise HTTPException(
+                status_code=400,
+                detail="Bei ya chini lazima iwe ndogo kuliko bei ya juu.",
+            )
+        price = (price_min + price_max) / 2
+
+    if category == "service":
         stock_quantity = 0
 
-    # Embed product text into KnowledgeBase for RAG (include image_url so AI can surface it)
-    text = _kb_text(name, price, stock_quantity, description, category, image_url)
+    # Embed product text into KnowledgeBase for RAG
+    text = _kb_text(
+        name, price, price_min, price_max, stock_quantity, description, category, main_url
+    )
     embedding = await ai_engine._embed(text)
 
     kb = KnowledgeBase(
         tenant_id=tenant.id,
         content=text,
         embedding=embedding,
-        image_url=image_url,
+        image_url=main_url,
     )
     db.add(kb)
     await db.flush()
@@ -164,9 +221,12 @@ async def create_product(
         name=name,
         description=description,
         price=price,
+        price_min=price_min,
+        price_max=price_max,
         stock_quantity=stock_quantity,
         category=category,
-        image_url=image_url,
+        image_url=main_url,
+        extra_images=extra_urls if extra_urls else None,
         is_active=is_active,
         kb_entry_id=kb.id,
         last_updated=datetime.now(timezone.utc),
@@ -204,10 +264,16 @@ async def update_product(
     name: Optional[str] = Form(default=None, max_length=255),
     description: Optional[str] = Form(default=None, max_length=5000),
     price: Optional[float] = Form(default=None, ge=0),
+    price_min: Optional[float] = Form(default=None),
+    price_max: Optional[float] = Form(default=None),
     stock_quantity: Optional[int] = Form(default=None, ge=0),
     category: Optional[str] = Form(default=None),
     is_active: Optional[bool] = Form(default=None),
     image: Optional[UploadFile] = File(default=None),
+    image2: Optional[UploadFile] = File(default=None),
+    image3: Optional[UploadFile] = File(default=None),
+    existing_image_url: Optional[str] = Form(default=None),
+    existing_extra_images: Optional[str] = Form(default=None),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> ProductResponse:
@@ -221,7 +287,7 @@ async def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Handle image upload (replace old image in Cloudinary)
+    # Handle main image upload
     if image and image.filename:
         old_public_id = public_id_from_url(product.image_url)
         try:
@@ -232,12 +298,37 @@ async def update_product(
         if old_public_id:
             await delete_image(old_public_id)
 
-    # Apply partial updates
+    # Handle extra images
+    current_extras = []
+    if existing_extra_images:
+        try:
+            current_extras = json.loads(existing_extra_images)
+        except Exception:
+            current_extras = []
 
-    if category is not None:         
-        product.category = category  
-        if category == "service":    
-            product.stock_quantity = 0 
+    new_extras = list(current_extras)
+    for extra in [image2, image3]:
+        if extra and extra.filename:
+            url = await upload_image(extra)
+            new_extras.append(url)
+
+    new_extras = new_extras[:2]
+    product.extra_images = new_extras if new_extras else None
+
+    # Price validation
+    if price_min is not None and price_max is not None:
+        if price_min >= price_max:
+            raise HTTPException(
+                status_code=400,
+                detail="Bei ya chini lazima iwe ndogo kuliko bei ya juu.",
+            )
+        price = (price_min + price_max) / 2
+
+    # Apply partial updates
+    if category is not None:
+        product.category = category
+        if category == "service":
+            product.stock_quantity = 0
 
     if name is not None:
         product.name = name
@@ -249,11 +340,24 @@ async def update_product(
         product.stock_quantity = stock_quantity
     if is_active is not None:
         product.is_active = is_active
+    if price_min is not None:
+        product.price_min = price_min
+    if price_max is not None:
+        product.price_max = price_max
 
     product.last_updated = datetime.now(timezone.utc)
 
-    # Re-embed with updated values (include current image_url)
-    new_text = _kb_text(product.name, product.price, product.stock_quantity, product.description, product.category, product.image_url)
+    # Re-embed with updated values
+    new_text = _kb_text(
+        product.name,
+        product.price,
+        product.price_min,
+        product.price_max,
+        product.stock_quantity,
+        product.description,
+        product.category,
+        product.image_url,
+    )
     new_embedding = await ai_engine._embed(new_text)
 
     if product.kb_entry_id:
@@ -299,7 +403,7 @@ async def delete_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Remove the linked KB entry so it won't appear in RAG results
+    # Remove linked KB entry
     if product.kb_entry_id:
         kb_result = await db.execute(
             select(KnowledgeBase).where(KnowledgeBase.id == product.kb_entry_id)

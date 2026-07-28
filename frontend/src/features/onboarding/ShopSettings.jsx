@@ -255,7 +255,7 @@ useEffect(() => {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Mipangilio ya Duka</h1>
+        <h1 className="text-2xl font-bold text-white">Mipangilio ya Biashara</h1>
         <p className="text-sm text-gray-400 mt-1">
           Weka taarifa sahihi za biashara yako ili AI yako ifanye kazi vizuri.
         </p>

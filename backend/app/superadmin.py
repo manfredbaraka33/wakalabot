@@ -213,32 +213,183 @@ async def user_growth(
         for d in _build_date_range(days)
     ]
 
-
 @router.get("/ai-activity", dependencies=[Depends(get_superadmin)])
 async def ai_activity(
     days: int = Query(default=30, ge=7, le=90),
     db: AsyncSession = Depends(get_db),
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     start = datetime.now(timezone.utc) - timedelta(days=days)
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
 
-    rows = (
+    # ── Daily trend — messages (deductions + subscription_usage) ─────────────
+    trend_rows = (
         await db.execute(
             select(
                 func.date(Transaction.created_at).label("day"),
-                func.sum(Transaction.coin_amount).label("coins"),
+                func.count(Transaction.id).label("count"),
             )
-            .where(Transaction.tx_type == "deduction", Transaction.created_at >= start)
+            .where(
+                Transaction.tx_type.in_(["deduction", "subscription_usage"]),
+                Transaction.created_at >= start,
+            )
             .group_by(func.date(Transaction.created_at))
             .order_by(func.date(Transaction.created_at))
         )
     ).all()
 
-    coins_map: dict[str, int] = {str(r.day): int(r.coins) for r in rows}
-    return [
+    count_map: dict[str, int] = {str(r.day): int(r.count) for r in trend_rows}
+    daily_trend = [
+        {"date": d, "count": count_map.get(d, 0)}
+        for d in _build_date_range(days)
+    ]
+
+    # ── Coins chart — keep backward compat for existing graph ─────────────────
+    coins_rows = (
+        await db.execute(
+            select(
+                func.date(Transaction.created_at).label("day"),
+                func.coalesce(func.sum(Transaction.coin_amount), 0).label("coins"),
+            )
+            .where(
+                Transaction.tx_type == "deduction",
+                Transaction.created_at >= start,
+            )
+            .group_by(func.date(Transaction.created_at))
+            .order_by(func.date(Transaction.created_at))
+        )
+    ).all()
+
+    coins_map: dict[str, int] = {str(r.day): int(r.coins) for r in coins_rows}
+    coins_chart = [
         {"date": d, "coins": coins_map.get(d, 0)}
         for d in _build_date_range(days)
     ]
 
+    # ── Totals ────────────────────────────────────────────────────────────────
+    totals = (
+        await db.execute(
+            select(
+                func.count(Transaction.id).label("total_messages"),
+                func.coalesce(func.sum(Transaction.usd_cost), 0).label("total_cost_usd"),
+                func.coalesce(func.sum(Transaction.prompt_tokens), 0).label("prompt_tokens"),
+                func.coalesce(func.sum(Transaction.completion_tokens), 0).label("completion_tokens"),
+            )
+            .where(
+                Transaction.tx_type.in_(["deduction", "subscription_usage"]),
+                Transaction.created_at >= start,
+            )
+        )
+    ).one()
+
+    # ── Today ─────────────────────────────────────────────────────────────────
+    today_count = (
+        await db.scalar(
+            select(func.count(Transaction.id)).where(
+                Transaction.tx_type.in_(["deduction", "subscription_usage"]),
+                Transaction.created_at >= today_start,
+            )
+        )
+    ) or 0
+
+    # ── Eco vs Smart ──────────────────────────────────────────────────────────
+    eco_count = (
+        await db.scalar(
+            select(func.count(Transaction.id)).where(
+                Transaction.tx_type.in_(["deduction", "subscription_usage"]),
+                Transaction.created_at >= start,
+                Transaction.note.ilike("%eco%"),
+            )
+        )
+    ) or 0
+
+    smart_count = (
+        await db.scalar(
+            select(func.count(Transaction.id)).where(
+                Transaction.tx_type.in_(["deduction", "subscription_usage"]),
+                Transaction.created_at >= start,
+                Transaction.note.ilike("%smart%"),
+            )
+        )
+    ) or 0
+
+    # ── Subscription vs Coins split ───────────────────────────────────────────
+    sub_count = (
+        await db.scalar(
+            select(func.count(Transaction.id)).where(
+                Transaction.tx_type == "subscription_usage",
+                Transaction.created_at >= start,
+            )
+        )
+    ) or 0
+
+    coin_count = (
+        await db.scalar(
+            select(func.count(Transaction.id)).where(
+                Transaction.tx_type == "deduction",
+                Transaction.created_at >= start,
+            )
+        )
+    ) or 0
+
+    # ── Active tenants ────────────────────────────────────────────────────────
+    active_tenants = (
+        await db.scalar(
+            select(func.count(func.distinct(Transaction.tenant_id))).where(
+                Transaction.tx_type.in_(["deduction", "subscription_usage"]),
+                Transaction.created_at >= start,
+            )
+        )
+    ) or 0
+
+    # ── Top 5 tenants by message count ────────────────────────────────────────
+    top_rows = (
+        await db.execute(
+            select(
+                Transaction.tenant_id,
+                func.count(Transaction.id).label("msg_count"),
+                func.coalesce(func.sum(Transaction.usd_cost), 0).label("cost"),
+            )
+            .where(
+                Transaction.tx_type.in_(["deduction", "subscription_usage"]),
+                Transaction.created_at >= start,
+            )
+            .group_by(Transaction.tenant_id)
+            .order_by(func.count(Transaction.id).desc())
+            .limit(5)
+        )
+    ).all()
+
+    top_tenants = []
+    for row in top_rows:
+        tenant_obj = await db.get(Tenant, row.tenant_id)
+        top_tenants.append({
+            "tenant_id": str(row.tenant_id),
+            "biz_name": tenant_obj.biz_name if tenant_obj else "Unknown",
+            "username": tenant_obj.username if tenant_obj else "—",
+            "message_count": row.msg_count,
+            "cost_usd": round(float(row.cost), 4),
+        })
+
+    return {
+        # Backward compat — existing coins chart still works unchanged
+        "coins_chart": coins_chart,
+        # New fields
+        "daily_trend": daily_trend,
+        "total_messages": int(totals.total_messages),
+        "today_messages": int(today_count),
+        "total_cost_usd": round(float(totals.total_cost_usd), 4),
+        "total_prompt_tokens": int(totals.prompt_tokens),
+        "total_completion_tokens": int(totals.completion_tokens),
+        "eco_messages": int(eco_count),
+        "smart_messages": int(smart_count),
+        "subscription_messages": int(sub_count),
+        "coin_messages": int(coin_count),
+        "active_tenants": int(active_tenants),
+        "top_tenants": top_tenants,
+        "period_days": days,
+    }
 
 # ── Tenants CRUD ──────────────────────────────────────────────────────────────
 

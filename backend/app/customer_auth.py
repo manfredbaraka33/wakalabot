@@ -134,7 +134,7 @@ async def request_otp(
 
     sent = await send_sms(
         phone,
-        f"Nambari yako ya uthibitisho ya WakalaBot ni {code}. "
+        f"Nambari yako ya uthibitisho ya Wakalabot ni {code}. "
         f"Inaisha muda baada ya dakika 10. Kama hukuomba hii, puuza ujumbe huu."
     )
     if not sent:

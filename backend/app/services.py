@@ -47,6 +47,7 @@ COIN_VALUE_USD = 0.000300
 _IMAGE_TAG_RE = re.compile(r"\[IMAGE_URL:\s*(https?://[^\]]+)\]", re.IGNORECASE)
 _FORCE_IMAGE_RE = re.compile(r"\bFORCE_IMAGE\b", re.IGNORECASE)
 _RAW_CLOUDINARY_RE = re.compile(r"https?://res\.cloudinary\.com/\S+", re.IGNORECASE)
+
 _NAME_RE = re.compile(
     r"(?:naitwa|jina\s+langu\s+ni|my\s+name\s+is|i(?:'|')?m\s+called)"
     r"\s+([A-Za-z][A-Za-z\s]{1,40})",
@@ -54,12 +55,37 @@ _NAME_RE = re.compile(
 )
 
 
+# def _extract_image(text: str) -> tuple[Optional[str], str]:
+#     m = _IMAGE_TAG_RE.search(text)
+#     url = m.group(1).strip().rstrip(".,;:)!?'\"") if m else None
+#     clean = _IMAGE_TAG_RE.sub("", text) if m else text
+#     clean = _FORCE_IMAGE_RE.sub("", clean).strip()
+#     return url, clean
+
+# _IMAGE_TAG_RE = re.compile(r"\[IMAGE_URL:\s*(https?://[^\]]+)\]", re.IGNORECASE)
+
+
 def _extract_image(text: str) -> tuple[Optional[str], str]:
+    """Legacy single-image extractor — kept for backward compatibility."""
     m = _IMAGE_TAG_RE.search(text)
     url = m.group(1).strip().rstrip(".,;:)!?'\"") if m else None
     clean = _IMAGE_TAG_RE.sub("", text) if m else text
     clean = _FORCE_IMAGE_RE.sub("", clean).strip()
     return url, clean
+
+
+def _extract_all_images(text: str) -> tuple[list[str], str]:
+    """Extract ALL [IMAGE_URL: ...] tags from AI response.
+    Returns (list_of_urls, cleaned_text_with_tags_removed).
+    """
+    urls = []
+    for m in _IMAGE_TAG_RE.finditer(text):
+        url = m.group(1).strip().rstrip(".,;:)!?'\"")
+        if url:
+            urls.append(url)
+    clean = _IMAGE_TAG_RE.sub("", text)
+    clean = _FORCE_IMAGE_RE.sub("", clean).strip()
+    return urls, clean
 
 
 def _calculate_coins(
@@ -210,16 +236,21 @@ class AIEngine:
         self, db: AsyncSession, tenant_id: uuid.UUID, customer_phone: str
     ) -> Conversation:
         result = await db.execute(
-            select(Conversation).where(
+            select(Conversation)
+            .where(
                 Conversation.tenant_id == tenant_id,
                 Conversation.customer_phone == customer_phone,
             )
+            .order_by(Conversation.created_at.desc())
+            .limit(1)
         )
-        conv = result.scalar_one_or_none()
+        conv = result.scalars().first()
+        
         if conv is None:
             conv = Conversation(tenant_id=tenant_id, customer_phone=customer_phone)
             db.add(conv)
             await db.flush()
+            
         return conv
 
     async def _load_history(
@@ -232,7 +263,6 @@ class AIEngine:
             .limit(HISTORY_WINDOW)
         )
         return list(reversed(result.scalars().all()))
-
     async def _deduct_coins(
         self,
         db: AsyncSession,
@@ -456,22 +486,25 @@ class AIEngine:
             f"One honorific per reply maximum ('boss', 'mkuu').\n"
             f"\n3. PURCHASE FLOW.\n"
             f"- Confirm item and price from tool data.\n"
+            f"- Always quote prices using 'price_display' field from tool results, never 'price_tzs'.\n"
+            f"- For range prices say: 'Bei ni X–Y TZS kulingana na...' and ask what they need.\n"
             f"- If customer name unknown: ask naturally before saving lead.\n"
             f"- Once name known and intent clear: call save_lead immediately.\n"
             f'- After lead saved: "Biashara itawasiliana nawe hivi karibuni." Close the topic.\n'
             f"\n4. IMAGES.\n"
-            f"Only send [IMAGE_URL: url] when customer says 'picha', 'onyesha', 'show me', 'nitumie picha'.\n"
-            f"Get URL from tool result image_url field. Never invent URLs.\n"
-            f"Place [IMAGE_URL: url] alone on the last line of your reply.\n"
+            f"Only send images when customer says 'picha', 'onyesha', 'show me', 'nitumie picha'.\n"
+            f"When requested, send ALL available images for the product by including every URL found in the all_images list.\n"
+            f"Place each [IMAGE_URL: url] tag on its own line at the very end of your response.\n"
+            f"Never invent image URLs. Only use valid URLs provided in the product data.\n"
             f"\n5. FAREWELLS.\n"
             f"'bye', 'nakuaga', 'baadaye' → one short warm farewell, stop.\n"
             f"\n6. ESCALATION.\n"
             f"Angry or complex issue → escalate_to_human tool.\n"
             f"\n7. INSIGHTS.\n"
             f"Valuable observations → save_customer_note or generate_insight.\n"
-            f"\n8. DISCLAIMER.\n"
-            f"Add exactly once, at the end of your very first reply only:\n"
-            f"_WakalaBot inaweza kukosea. Thibitisha taarifa muhimu._\n"
+            # f"\n8. DISCLAIMER.\n"
+            # f"Add exactly once, at the end of your very first reply only:\n"
+            # f"_Wakalabot inaweza kukosea. Thibitisha taarifa muhimu._\n"
         )
 
         # ── 6. Build message history for the model ──────────────────────────
@@ -599,14 +632,24 @@ class AIEngine:
                 answer = f"{answer}\n[IMAGE_URL: {raw_url}]"
 
         # ── 10. Persist messages ─────────────────────────────────────────────
+
+        # return answer, tools_used, new_msg
         db.add(Message(conversation_id=conv.id, role="user", content=user_input))
-        ai_image_url, ai_clean_content = _extract_image(answer)
+
+        # Extract ALL image URLs from the AI response
+        all_image_urls, ai_clean_content = _extract_all_images(answer)
+
+        # First image goes into the legacy image_url field for backward compat
+        # Remaining images go into extra_image_urls
+        main_image_url = all_image_urls[0] if all_image_urls else None
+        extra_image_urls = all_image_urls[1:] if len(all_image_urls) > 1 else None
 
         new_msg = Message(
             conversation_id=conv.id,
             role="assistant",
             content=ai_clean_content,
-            image_url=ai_image_url,
+            image_url=main_image_url,
+            extra_image_urls=extra_image_urls,
         )
         db.add(new_msg)
         await db.commit()

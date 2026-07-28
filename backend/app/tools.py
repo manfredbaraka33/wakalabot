@@ -137,8 +137,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "save_lead",
-            # ── FIX: description now uses the correct parameter name 'customer_phone'
-            # and clearly explains when to populate it vs when to leave it empty.
+            
             "description": (
                 "Save a customer purchase lead to the database and notify the merchant. "
                 "Only call this after the customer has shown clear buying intent AND their name is known. "
@@ -166,7 +165,7 @@ TOOLS = [
                         "type": "string",
                         "enum": ["order_intent", "appointment_intent", "price_inquiry", "general_interest"],
                     },
-                    # ── FIX: these two parameters now exist in the schema so Gemini can pass them
+                    
                     "customer_phone": {
                         "type": "string",
                         "description": (
@@ -356,9 +355,18 @@ class ToolExecutor:
             "products": [
                 {
                     "name": p.name,
-                    "price_tzs": float(p.price),
+                    "price_display": (
+                        f"{int(p.price_min):,}–{int(p.price_max):,} TZS"
+                        if p.price_min and p.price_max
+                        else f"{int(p.price):,} TZS"
+                    ),
+                    "price_tzs": float(p.price) if p.price else 0,
                     "in_stock": p.stock_quantity > 0,
                     "stock_qty": p.stock_quantity,
+                    "image_count": (
+                        (1 if p.image_url else 0) +
+                        (len(p.extra_images) if p.extra_images else 0)
+                    ),
                 }
                 for p in products
             ],
@@ -379,9 +387,19 @@ class ToolExecutor:
             "found": True,
             "count": len(services),
             "services": [
+                # {
+                #     "name": s.name,
+                #     "price_tzs": float(s.price),
+                # }
                 {
                     "name": s.name,
-                    "price_tzs": float(s.price),
+                    "price_display": (
+                        f"{int(s.price_min):,}–{int(s.price_max):,} TZS"
+                        if s.price_min and s.price_max
+                        else f"{int(s.price):,} TZS"
+                    ),
+                    "price_tzs": float(s.price) if s.price else 0,
+                    "has_price_range": bool(s.price_min and s.price_max),
                 }
                 for s in services
             ],
@@ -402,14 +420,36 @@ class ToolExecutor:
                 "found": False,
                 "message": f"Bidhaa '{product_name}' haikupatikana katika mfumo. Jibu kwa mtumiaji kwamba bidhaa hiyo haipo."
             })
+        # Build price display string
+        if product.price_min and product.price_max:
+            price_str = (
+                f"{int(product.price_min):,}–{int(product.price_max):,} TZS"
+            )
+        else:
+            price_str = f"{int(product.price):,} TZS" if product.price else "Bei kwa ombi"
+
+        # Collect ALL images into one list
+        all_images = []
+        if product.image_url:
+            all_images.append(product.image_url)
+        if product.extra_images:
+            all_images.extend(product.extra_images)
+
         return json.dumps({
             "found": True,
             "name": product.name,
-            "price_tzs": float(product.price),
+            "price_display": price_str,
+            "price_tzs": float(product.price) if product.price else 0,
+            "price_min": float(product.price_min) if product.price_min else None,
+            "price_max": float(product.price_max) if product.price_max else None,
+            "has_price_range": bool(product.price_min and product.price_max),
             "stock": product.stock_quantity,
             "in_stock": product.stock_quantity > 0,
             "description": product.description or "",
             "image_url": product.image_url,
+            "extra_images": product.extra_images or [],
+            "all_images": all_images,
+            "image_count": len(all_images),
         })
 
     async def get_service_by_name(self, service_name: str) -> str:
@@ -427,12 +467,36 @@ class ToolExecutor:
                 "found": False,
                 "message": f"Huduma '{service_name}' haikupatikana. Jibu kwa mtumiaji kwamba huduma hiyo haipo."
             })
+        # return json.dumps({
+        #     "found": True,
+        #     "name": service.name,
+        #     "price_tzs": float(service.price),
+        #     "description": service.description or "",
+        #     "image_url": service.image_url,
+        # })
+        if service.price_min and service.price_max:
+            price_str = f"{int(service.price_min):,}–{int(service.price_max):,} TZS"
+        else:
+            price_str = f"{int(service.price):,} TZS" if service.price else "Bei kwa ombi"
+
+        all_images = []
+        if service.image_url:
+            all_images.append(service.image_url)
+        if service.extra_images:
+            all_images.extend(service.extra_images)
+
         return json.dumps({
             "found": True,
             "name": service.name,
-            "price_tzs": float(service.price),
+            "price_display": price_str,
+            "price_tzs": float(service.price) if service.price else 0,
+            "price_min": float(service.price_min) if service.price_min else None,
+            "price_max": float(service.price_max) if service.price_max else None,
+            "has_price_range": bool(service.price_min and service.price_max),
             "description": service.description or "",
             "image_url": service.image_url,
+            "all_images": all_images,
+            "image_count": len(all_images),
         })
 
     async def get_shop_info(self) -> str:
@@ -800,7 +864,7 @@ class ToolExecutor:
             search_url = f"https://lite.duckduckgo.com/lite/?q={query.replace(' ', '+')}"
             async with httpx.AsyncClient(
                 timeout=10.0,
-                headers={"User-Agent": "Mozilla/5.0 WakalaBot/1.0"},
+                headers={"User-Agent": "Mozilla/5.0 Wakalabot/1.0"},
                 follow_redirects=True,
             ) as client:
                 resp = await client.get(search_url)

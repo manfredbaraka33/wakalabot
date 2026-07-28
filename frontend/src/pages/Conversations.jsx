@@ -94,8 +94,6 @@ function ConvItem({ conv, isActive, onClick }) {
 
 // ── Content parser ────────────────────────────────────────────────────────────
 
-const CLOUDINARY_RE = /https?:\/\/res\.cloudinary\.com\/[^\s\]"')]+/gi
-
 function optimiseCloudinary(url) {
   return url.includes('/upload/')
     ? url.replace('/upload/', '/upload/f_auto,q_auto/')
@@ -103,10 +101,30 @@ function optimiseCloudinary(url) {
 }
 
 function parseContent(raw) {
-  const text = raw.replace(/\bFORCE_IMAGE\b/gi, '').trim()
-  const urls = [...text.matchAll(CLOUDINARY_RE)].map((m) => m[0])
-  const cleanText = text.replace(CLOUDINARY_RE, '').trim()
-  return { cleanText, embeddedUrls: urls }
+  if (!raw) return { cleanText: '', embeddedUrls: [] }
+  let text = raw.replace(/\bFORCE_IMAGE\b/gi, '').trim()
+
+  const embeddedUrls = []
+
+  // 1. Match and extract [IMAGE_URL: ...] tags and strip full brackets
+  const tagRegex = /\[IMAGE_URL:\s*(https?:\/\/[^\]\s]+)\]/gi
+  let match
+  while ((match = tagRegex.exec(text)) !== null) {
+    embeddedUrls.push(match[1])
+  }
+  text = text.replace(tagRegex, '')
+
+  // 2. Extract remaining raw Cloudinary or standard image links
+  const rawUrlRegex = /https?:\/\/(?:res\.cloudinary\.com\/[^\s\]"')]+|[^\s\]"')]+\.(?:png|jpg|jpeg|webp|gif))/gi
+  while ((match = rawUrlRegex.exec(text)) !== null) {
+    if (!embeddedUrls.includes(match[0])) {
+      embeddedUrls.push(match[0])
+    }
+  }
+  text = text.replace(rawUrlRegex, '')
+
+  const cleanText = text.trim()
+  return { cleanText, embeddedUrls }
 }
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
@@ -114,10 +132,16 @@ function parseContent(raw) {
 function MessageBubble({ msg }) {
   const isUser = msg.role === 'user'
   const { cleanText, embeddedUrls } = parseContent(msg.content || '')
-  const allImages = [
+
+  // Combine image sources: array fields, single image fields, and extracted text URLs
+  const combinedImages = [
+    ...(Array.isArray(msg.image_urls) ? msg.image_urls : []),
     ...(msg.image_url ? [msg.image_url] : []),
-    ...embeddedUrls.filter((u) => u !== msg.image_url),
+    ...embeddedUrls,
   ]
+
+  // Remove duplicate URLs
+  const allImages = [...new Set(combinedImages)]
 
   return (
     <div className={`flex ${isUser ? 'justify-start' : 'justify-end'} mb-2`}>
@@ -130,23 +154,14 @@ function MessageBubble({ msg }) {
         <div className={`rounded-2xl px-3 py-2 text-sm shadow-sm flex flex-col ${
           isUser
             ? 'bg-gray-700 text-white rounded-tl-none'
-            : 'bg-indigo-700 text-yellow-100 rounded-tr-none' 
+            : 'bg-indigo-700 text-gray-50 rounded-tr-none' 
         }`}>
-          {allImages.map((url, i) => (
-            <img
-              key={i}
-              src={optimiseCloudinary(url)}
-              alt="Product"
-              style={{ maxWidth: 250, borderRadius: 10 }}
-              className="mb-2 object-cover block"
-              loading="lazy"
-            />
-          ))}
+          
+
           {cleanText && (
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}
               components={{
-                // Custom link styling
                 a: ({ node, ...props }) => (
                   <a 
                     {...props} 
@@ -155,7 +170,6 @@ function MessageBubble({ msg }) {
                     className="text-indigo-400 hover:text-indigo-300 underline font-medium break-all"
                   />
                 ),
-                // Custom paragraph styling moved here safely
                 p: ({ node, ...props }) => (
                   <p {...props} className="whitespace-pre-wrap wrap-break-word" />
                 )
@@ -164,6 +178,25 @@ function MessageBubble({ msg }) {
               {cleanText}
             </ReactMarkdown>
           )}
+
+
+          {(msg.image_urls?.length > 0 || msg.image_url) && (
+          <div className={`flex flex-wrap gap-2 mt-2`}>
+            {(msg.image_urls?.length > 0
+              ? msg.image_urls
+              : [msg.image_url]
+            ).map((url, i) => (
+              <img
+                key={i}
+                src={url}
+                alt={`Picha ${i + 1}`}
+                className="rounded-xl object-cover max-h-52 max-w-[220px] cursor-pointer hover:opacity-90 transition-opacity border border-gray-700"
+                onClick={() => window.open(url, '_blank')}
+                onError={e => { e.target.style.display = 'none' }}
+              />
+            ))}
+          </div>
+        )}
           <p className={`text-[10px] mt-1 text-right ${isUser ? 'text-gray-400' : 'text-indigo-200'}`}>
             {formatTime(msg.timestamp)}
           </p>
@@ -177,6 +210,7 @@ function MessageBubble({ msg }) {
     </div>
   )
 }
+
 // ── Leads Panel ───────────────────────────────────────────────────────────────
 
 function LeadsPanel({ convId }) {
@@ -230,10 +264,10 @@ export default function Conversations() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showLeads, setShowLeads] = useState(false)
   const [showScrollDown, setShowScrollDown] = useState(false)
-  const [showScrollTop, setShowScrollTop] = useState(false) // Added top scroll state
+  const [showScrollTop, setShowScrollTop] = useState(false)
   
   const bottomRef = useRef(null)
-  const topRef = useRef(null) // Added top reference
+  const topRef = useRef(null)
 
   const {
     data: conversations = [],
@@ -266,7 +300,7 @@ export default function Conversations() {
   function handleScroll(e) {
     const { scrollTop, scrollHeight, clientHeight } = e.target
     const isScrolledUp = scrollHeight - scrollTop - clientHeight > 150
-    const isScrolledDown = scrollTop > 150 // Detect if we've scrolled down from the top
+    const isScrolledDown = scrollTop > 150
     
     setShowScrollDown(isScrolledUp)
     setShowScrollTop(isScrolledDown)
@@ -362,29 +396,26 @@ export default function Conversations() {
                   Since {formatDate(active.created_at)}
                 </p>
               </div>
-            
             </div>
 
-          
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1" onScroll={handleScroll}>
-                <div ref={topRef} /> {/* Invisible div to act as our top target */}
-                
-                {chatLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <span className="text-sm text-gray-500">Loading messages…</span>
-                  </div>
-                ) : active.messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <span className="text-sm text-gray-600">No messages in this conversation.</span>
-                  </div>
-                ) : (
-                  active.messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
-                )}
-                
-                <div ref={bottomRef} /> {/* Invisible div to act as our bottom target */}
-              </div>
-            
-            
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1" onScroll={handleScroll}>
+              <div ref={topRef} />
+              
+              {chatLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <span className="text-sm text-gray-500">Loading messages…</span>
+                </div>
+              ) : active.messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <span className="text-sm text-gray-600">No messages in this conversation.</span>
+                </div>
+              ) : (
+                active.messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
+              )}
+              
+              <div ref={bottomRef} />
+            </div>
+
             {/* Floating Scroll Navigation Buttons */}
             {!showLeads && (showScrollTop || showScrollDown) && (
               <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">

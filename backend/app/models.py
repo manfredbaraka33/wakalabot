@@ -1,8 +1,9 @@
+from decimal import Decimal
 import uuid
 from typing import Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, Text, func,JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
@@ -174,6 +175,15 @@ class Product(Base):
     price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.00)
     stock_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     image_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    price_min: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+    price_max: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+    extra_images: Mapped[Optional[list]] = mapped_column(
+        JSON, nullable=True, default=None
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     kb_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
@@ -239,6 +249,9 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    extra_image_urls: Mapped[Optional[list]] = mapped_column(
+        JSON, nullable=True, default=None
+    )
     timestamp: Mapped[object] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import {
-  Users, TrendingUp, Coins, Ticket, BarChart3,
+  Users, TrendingUp, Coins, Ticket, BarChart3, Zap, MessageSquare, Bot,
 } from 'lucide-react'
 import {
   getStats, getRevenueTrend, getUserGrowth, getAiActivity,
@@ -89,14 +89,19 @@ export default function SuperAdminDashboard() {
     queryFn: () => getUserGrowth(range).then((r) => r.data),
   })
 
-  const { data: activity = [] } = useQuery({
+  const { data: activity = {} } = useQuery({
     queryKey: ['sa-activity', range],
     queryFn: () => getAiActivity(range).then((r) => r.data),
   })
 
   const revenueChart = revenue.map((d) => ({ ...d, date: shortDate(d.date) }))
   const growthChart = growth.map((d) => ({ ...d, date: shortDate(d.date) }))
-  const activityChart = activity.map((d) => ({ ...d, date: shortDate(d.date) }))
+  const activityChart = (activity?.coins_chart ?? []).map((d) => ({ ...d, date: shortDate(d.date) }))
+  const messagesTrend = (activity?.daily_trend ?? []).map((d) => ({
+    date: shortDate(d.date),
+    messages: d.count,
+    coins: 0, // will be merged with activityChart below
+  }))
 
   return (
     <div className="p-6 space-y-8">
@@ -129,12 +134,12 @@ export default function SuperAdminDashboard() {
           color="bg-emerald-500/15 text-emerald-400"
         />
         <StatCard
-          label="Coins Consumed"
-          value={stats ? stats.coins_consumed.toLocaleString() : '—'}
-          sub="AI usage across platform"
-          icon={Coins}
-          color="bg-amber-500/15 text-amber-400"
-        />
+        label="AI Messages (30d)"
+        value={activity?.total_messages?.toLocaleString() ?? '—'}
+        sub={`Leo: ${activity?.today_messages?.toLocaleString() ?? '—'} · Tenants ${activity?.active_tenants ?? '—'} hai`}
+        icon={Bot}
+        color="bg-amber-500/15 text-amber-400"
+/>
         <StatCard
           label="Open Tickets"
           value={stats?.open_tickets ?? '—'}
@@ -193,34 +198,159 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* AI Activity */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 xl:col-span-2">
-          <h2 className="text-sm font-semibold text-white mb-4">AI Activity — Coins Spent by Day</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={activityChart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="coinGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-              <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={customTooltipStyle} formatter={(v) => [v.toLocaleString(), 'Coins']} />
-              <Legend
-                wrapperStyle={{ color: '#9ca3af', fontSize: '12px' }}
-                formatter={() => 'Coins Spent'}
-              />
-              <Line
-                type="monotone"
-                dataKey="coins"
-                stroke="#f59e0b"
-                strokeWidth={2.5}
-                dot={false}
-                activeDot={{ r: 4, fill: '#f59e0b' }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 xl:col-span-2 space-y-5">
+
+          {/* Header with split stats */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-white">AI Activity</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Messages na coins zote za platform</p>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs">
+              <span className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2.5 py-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />
+                <span className="text-gray-400">Eco:</span>
+                <span className="text-white font-medium">{activity?.eco_messages?.toLocaleString() ?? '—'}</span>
+              </span>
+              <span className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2.5 py-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block" />
+                <span className="text-gray-400">Smart:</span>
+                <span className="text-white font-medium">{activity?.smart_messages?.toLocaleString() ?? '—'}</span>
+              </span>
+              <span className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2.5 py-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                <span className="text-gray-400">Sub:</span>
+                <span className="text-white font-medium">{activity?.subscription_messages?.toLocaleString() ?? '—'}</span>
+              </span>
+              <span className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2.5 py-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                <span className="text-gray-400">Coins:</span>
+                <span className="text-white font-medium">{activity?.coin_messages?.toLocaleString() ?? '—'}</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Mini KPIs */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-gray-950 rounded-xl px-3 py-2.5">
+              <p className="text-xs text-gray-500">API Cost ({activity?.period_days ?? 30}d)</p>
+              <p className="text-sm font-bold text-orange-400 mt-0.5">
+                ${activity?.total_cost_usd?.toFixed(3) ?? '—'}
+              </p>
+            </div>
+            <div className="bg-gray-950 rounded-xl px-3 py-2.5">
+              <p className="text-xs text-gray-500">Prompt Tokens</p>
+              <p className="text-sm font-bold text-white mt-0.5">
+                {activity?.total_prompt_tokens?.toLocaleString() ?? '—'}
+              </p>
+            </div>
+            <div className="bg-gray-950 rounded-xl px-3 py-2.5">
+              <p className="text-xs text-gray-500">Completion Tokens</p>
+              <p className="text-sm font-bold text-white mt-0.5">
+                {activity?.total_completion_tokens?.toLocaleString() ?? '—'}
+              </p>
+            </div>
+          </div>
+
+          {/* Dual chart — messages + coins */}
+          <div>
+            <p className="text-xs text-gray-500 mb-3">Messages kwa siku (mstari wa bluu) · Coins (mstari wa njano)</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart
+                data={messagesTrend.map((d, i) => ({
+                  ...d,
+                  coins: activityChart[i]?.coins ?? 0,
+                }))}
+                margin={{ top: 4, right: 4, bottom: 0, left: -20 }}
+              >
+                <defs>
+                  <linearGradient id="coinGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#6b7280', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: '#6b7280', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  contentStyle={customTooltipStyle}
+                  formatter={(v, name) => [
+                    v.toLocaleString(),
+                    name === 'messages' ? 'Messages' : 'Coins',
+                  ]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="messages"
+                  stroke="#6366f1"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#6366f1' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="coins"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  dot={false}
+                  strokeDasharray="4 2"
+                  activeDot={{ r: 4, fill: '#f59e0b' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Top tenants by usage */}
+          {activity?.top_tenants?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Top Tenants — AI Usage
+              </p>
+              <div className="space-y-2.5">
+                {activity.top_tenants.map((t, i) => {
+                  const maxCount = activity.top_tenants[0].message_count
+                  const pct = Math.max((t.message_count / maxCount) * 100, 5)
+                  return (
+                    <div key={t.tenant_id} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-gray-600 w-4 shrink-0 font-mono">{i + 1}</span>
+                          <span className="text-gray-200 truncate font-medium">{t.biz_name}</span>
+                          <span className="text-gray-600 font-mono hidden sm:inline text-[10px]">
+                            @{t.username}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 ml-2">
+                          <span className="text-amber-400 font-semibold">
+                            {t.message_count.toLocaleString()} msgs
+                          </span>
+                          <span className="text-gray-600 text-[10px]">
+                            ${t.cost_usd.toFixed(3)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-amber-500/70 to-amber-300/40 transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
