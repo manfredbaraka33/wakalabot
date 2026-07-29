@@ -418,11 +418,11 @@ async def get_chat_history(
         return {"messages": []}
 
     msgs_query = (
-        select(Message)
-        .where(Message.conversation_id == conv.id)
-        .order_by(Message.timestamp.desc())
-        .limit(20)
-    )
+    select(Message)
+    .where(Message.conversation_id == conv.id)
+    .order_by(Message.timestamp.desc(), Message.sequence_id.desc())
+    .limit(20)
+)
     if customer_since:
         msgs_query = msgs_query.where(Message.timestamp >= customer_since)
 

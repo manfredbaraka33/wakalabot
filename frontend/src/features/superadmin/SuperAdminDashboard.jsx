@@ -325,7 +325,7 @@ export default function SuperAdminDashboard() {
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-gray-600 w-4 shrink-0 font-mono">{i + 1}</span>
-                          <span className="text-gray-200 truncate font-medium">{t.biz_name}</span>
+                          <span className="text-blue-600 truncate font-medium">{t.biz_name}</span>
                           <span className="text-gray-600 font-mono hidden sm:inline text-[10px]">
                             @{t.username}
                           </span>

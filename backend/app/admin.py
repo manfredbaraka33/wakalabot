@@ -96,52 +96,6 @@ async def list_chats(
     return result
 
 
-# @router.get("/chats/{conversation_id}", response_model=dict)
-# async def get_chat(
-#     conversation_id: uuid.UUID,
-#     tenant: Tenant = Depends(get_current_tenant),
-#     db: AsyncSession = Depends(get_db),
-# ) -> dict[str, Any]:
-#     """Return the full message history for a single conversation."""
-
-#     conv_result = await db.execute(
-#         select(Conversation).where(
-#             Conversation.id == conversation_id,
-#             Conversation.tenant_id == tenant.id,
-#         )
-#     )
-#     conv = conv_result.scalar_one_or_none()
-#     if conv is None:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Conversation not found",
-#         )
-
-#     msgs_result = await db.execute(
-#         select(Message)
-#         .where(Message.conversation_id == conversation_id)
-#         .order_by(Message.timestamp.asc())
-#     )
-#     messages = msgs_result.scalars().all()
-
-#     return {
-#         "id": str(conv.id),
-#         "customer_phone": conv.customer_phone,
-#         "customer_name": conv.customer_name,
-#         "created_at": conv.created_at.isoformat() if conv.created_at else None,
-#         "messages": [
-#             {
-#                 "id": str(m.id),
-#                 "role": m.role,
-#                 "content": m.content,
-#                 "image_url": m.image_url,
-#                 "timestamp": m.timestamp.isoformat() if m.timestamp else None,
-#             }
-#             for m in messages
-#         ],
-#     }
-
-
 @router.get("/chats/{conversation_id}", response_model=dict)
 async def get_chat(
     conversation_id: uuid.UUID,
@@ -166,7 +120,7 @@ async def get_chat(
     msgs_result = await db.execute(
         select(Message)
         .where(Message.conversation_id == conversation_id)
-        .order_by(Message.timestamp.asc())
+        .order_by(Message.timestamp.asc(), Message.sequence_id.asc())
     )
     messages = msgs_result.scalars().all()
 

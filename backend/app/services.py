@@ -259,7 +259,7 @@ class AIEngine:
         result = await db.execute(
             select(Message)
             .where(Message.conversation_id == conversation_id)
-            .order_by(Message.timestamp.desc())
+            .order_by(Message.timestamp.desc(), Message.sequence_id.desc())
             .limit(HISTORY_WINDOW)
         )
         return list(reversed(result.scalars().all()))

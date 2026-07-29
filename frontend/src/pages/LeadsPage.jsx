@@ -135,11 +135,28 @@ function ChatModal({ conversationId, customerPhone, onClose }) {
                         {msg.content}
                       </ReactMarkdown>
 
-                    {msg.image_url && (
+                    {/* {msg.image_url && (
                       <div className="mt-2 rounded-lg overflow-hidden max-w-xs">
                         <img src={msg.image_url} alt="Attachment" className="w-full h-auto object-cover max-h-48" />
                       </div>
-                    )}
+                    )} */}
+                    {(msg.image_urls?.length > 0 || msg.image_url) && (
+                    <div className={`flex flex-wrap gap-2 mt-2`}>
+                      {(msg.image_urls?.length > 0
+                        ? msg.image_urls
+                        : [msg.image_url]
+                      ).map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Picha ${i + 1}`}
+                          className="rounded-xl object-cover max-h-52 max-w-[220px] cursor-pointer hover:opacity-90 transition-opacity border border-gray-700"
+                          onClick={() => window.open(url, '_blank')}
+                          onError={e => { e.target.style.display = 'none' }}
+                        />
+                      ))}
+                    </div>
+                  )}
                     <span className="block text-[9px] opacity-40 mt-1 text-right">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
