@@ -18,23 +18,36 @@ import {
   ChevronLeft,
   ChevronRight,
   FlameIcon,
-  HelpCircle
+  HelpCircle,
+  Globe
 } from 'lucide-react'
 import useTenantStore from '../store/useTenantStore'
 import Footer from './Footer'
 import { useTheme } from '../hooks/useTheme'
 
-const NAV_ITEMS = [
+const COMMERCE_NAV = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/knowledge', label: 'Maudhui ya Biashara', icon: BookOpen },
-  { to: '/dashboard/products', label: 'Bidhaa na Huduma', icon: Package },
-  { to: '/dashboard/settings', label: 'Mipangilio ya Biashara', icon: Settings },
-  { to: '/dashboard/conversations', label: 'Maongezi', icon: MessageSquare },
-  { to: '/dashboard/analytics', label: 'Uchambuzi na Takwimu', icon: BarChart3 },
-  { to: '/dashboard/billing', label: 'Bili', icon: Coins },
+  { to: '/dashboard/knowledge', label: 'Knowledge Base', icon: BookOpen },
+  { to: '/dashboard/products', label: 'Products & Services', icon: Package },
+  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { to: '/dashboard/conversations', label: 'Conversations', icon: MessageSquare },
+  { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/dashboard/billing', label: 'Billing', icon: Coins },
   { to: '/dashboard/leads', label: 'Leads', icon: FlameIcon },
+  // { to: '/dashboard/directory', label: 'Wakalabot Directory', icon: Globe },
+  { to: '/dashboard/support', label: 'Support', icon: Ticket },
+]
+
+const INFO_NAV = [
+  { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
+  { to: '/dashboard/knowledge', label: 'Maudhui', icon: BookOpen },
+  { to: '/dashboard/infosettings', label: 'Mipangilio', icon: Settings },
+  { to: '/dashboard/conversations', label: 'Mazungumzo', icon: MessageSquare },
+  // { to: '/dashboard/analytics', label: 'Takwimu', icon: BarChart3 },
+  { to: '/dashboard/billing', label: 'Billing', icon: Coins },
+  { to: '/dashboard/leads', label: 'Maombi', icon: FlameIcon },
+  // { to: '/dashboard/directory', label: 'Wakalabot Directory', icon: Globe },
   { to: '/dashboard/support', label: 'Msaada', icon: Ticket },
-  // { to: '/dashboard/unanswered', label: 'Maswali Bila Majibu', icon: HelpCircle }
 ]
 
 function SidebarNavItem({ to, label, icon: Icon, end, onNavigate, collapsed }) {
@@ -167,6 +180,8 @@ export default function Layout() {
   const { user, logout } = useTenantStore()
   const navigate = useNavigate()
   const { theme, toggle } = useTheme()
+
+  const NAV_ITEMS = user?.bot_type === 'info' ? INFO_NAV : COMMERCE_NAV
 
   function handleLogout() {
     logout()

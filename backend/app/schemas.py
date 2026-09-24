@@ -12,6 +12,7 @@ class RegisterRequest(BaseModel):
     business_name: str = Field(..., min_length=2, max_length=255)
     phone: Optional[str] = Field(default=None, max_length=20)
     password: str = Field(..., min_length=8)
+    bot_type: str = Field(default="commerce", pattern=r'^(commerce|info)$')
 
 
 class LoginRequest(BaseModel):
@@ -34,6 +35,7 @@ class UserInfo(BaseModel):
     is_verified: bool = False
     ai_mode: str = "eco"
     logo_url: Optional[str] = None
+    bot_type: str = "commerce"
 
 
 class ChangePasswordRequest(BaseModel):
@@ -282,27 +284,33 @@ class AiModeRequest(BaseModel):
 
 SUBSCRIPTION_PLANS = [
     {
-        "id": "starter",
-        "label": "Starter",
-        "amount_tzs": 15000,
-        "messages_included": 500,
-        "ai_mode": "eco",
+        "id": "daily", "label": "Kila Siku", "amount_tzs": 1000,
+        "messages_included": 30, "duration_days": 1, "ai_mode": "eco",
+        "description": "Jaribu kwa siku moja — mazungumzo 30"
+    },
+    {
+        "id": "weekly", "label": "Kila Wiki", "amount_tzs": 5000,
+        "messages_included": 150, "duration_days": 7, "ai_mode": "eco",
+        "description": "Bundle ya wiki — mazungumzo 150"
+    },
+    {
+        "id": "starter", "label": "Starter (Mwezi)", "amount_tzs": 15000,
+        "messages_included": 500, "duration_days": 30, "ai_mode": "eco",
         "description": "Biashara ndogo — mazungumzo 500 kwa mwezi"
     },
     {
-        "id": "business",
-        "label": "Business",
-        "amount_tzs": 40000,
-        "messages_included": 2000,
-        "ai_mode": "eco",
+        "id": "business", "label": "Business (Mwezi)", "amount_tzs": 40000,
+        "messages_included": 2000, "duration_days": 30, "ai_mode": "eco",
         "description": "Biashara inayokua — mazungumzo 2,000 kwa mwezi"
     },
     {
-        "id": "pro",
-        "label": "Pro",
-        "amount_tzs": 80000,
-        "messages_included": 6000,
-        "ai_mode": "smart",
+        "id": "pro", "label": "Pro (Mwezi)", "amount_tzs": 80000,
+        "messages_included": 6000, "duration_days": 30, "ai_mode": "smart",
         "description": "Biashara kubwa — mazungumzo 6,000 + Smart AI"
+    },
+    {
+        "id": "quarterly", "label": "Miezi 3", "amount_tzs": 100000,
+        "messages_included": 6000, "duration_days": 90, "ai_mode": "eco",
+        "description": "Punguzo la miezi 3 — mazungumzo 6,000 jumla"
     },
 ]

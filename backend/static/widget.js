@@ -533,9 +533,22 @@
     const area = document.getElementById('wkb-messages');
     if (!area) return;
     area.innerHTML = '';
-    messages.forEach(msg => {
-      const row = document.createElement('div');
-      row.className = `wkb-row ${msg.role === 'user' ? 'wkb-u' : 'wkb-b'}`;
+      messages.forEach(msg => {
+    if (msg.role === 'system') {
+      const sysRow = document.createElement('div');
+      sysRow.style.cssText = `
+        align-self: center; max-width: 90%;
+        background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
+        border-radius: 12px; padding: 8px 14px; margin: 4px 0;
+        font-size: 12px; color: #fcd34d; text-align: center;
+      `;
+      sysRow.textContent = `⚠️ ${msg.content}`;
+      area.appendChild(sysRow);
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = `wkb-row ${msg.role === 'user' ? 'wkb-u' : 'wkb-b'}`;
 
      
 
@@ -595,10 +608,10 @@
           tenant_slug: SLUG,
         }),
       });
-      if (!res.ok) {
+            if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         messages.push({
-          role: 'assistant',
+          role: res.status === 402 ? 'system' : 'assistant',
           content: err.detail || 'Samahani, kuna tatizo. Tafadhali jaribu tena.',
           image_url: null,
         });

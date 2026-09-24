@@ -101,6 +101,7 @@ def _build_token_response(tenant: Tenant) -> TokenResponse:
             is_verified=tenant.is_verified,
             ai_mode=tenant.ai_mode,
             logo_url=tenant.logo_url,
+            bot_type=tenant.bot_type,
         ),
     )
 
@@ -133,6 +134,7 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
         phone=payload.phone.strip() if payload.phone else None,
         hashed_password=hash_password(payload.password),
         slug=slug,
+        bot_type=payload.bot_type,
     )
     db.add(tenant)
     await db.flush()

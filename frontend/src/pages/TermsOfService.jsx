@@ -7,24 +7,20 @@ import WakalaLogo from '../components/Wakalalogo'
 const TERMS_SW = `
 # Masharti ya Huduma
 
-*Yalisasishwa: Juni 30, 2026*
+*Yalisasishwa: September 09, 2026*
 
 ## 1. Kukubali Masharti
 Kwa kutumia Wakalabot ("Huduma"), unakubali kufungwa na Masharti haya ya Huduma na sheria zote zinazotumika za Jamhuri ya Muungano wa Tanzania.
 
 ## 2. Maelezo ya Huduma
-Wakalabot ni jukwaa la AI linalosaidia wafanyabiashara wa Tanzania kujibu wateja kiotomatiki kupitia chati ya wavuti, QR code, na widget inayowekwa kwenye website. Huduma inajumuisha usimamizi wa bidhaa, knowledge base, ufuatiliaji wa leads, na arifa za SMS.
-
+Wakalabot ni jukwaa la AI linalosaidia biashara na taasisi za Tanzania kujibu wateja au wageni kiotomatiki kupitia chati ya wavuti, QR code, na widget inayowekwa kwenye website. Huduma ina aina mbili: bot ya kibiashara (inayohusisha bidhaa, huduma, na leads) na bot ya taarifa tu (majibu ya maswali bila mauzo). Huduma inajumuisha usimamizi wa maudhui, knowledge base, ufuatiliaji wa leads au maombi, na arifa za SMS.
 ## 3. Akaunti ya Mtumiaji
 Unahitaji kufungua akaunti ya biashara kwa kutumia username, jina la biashara, na neno la siri ili kutumia Huduma. Namba ya simu na barua pepe si lazima lakini zinashauriwa kwa mawasiliano na arifa. Wewe ndiye unayehusika kuhifadhi siri ya akaunti yako na shughuli zote zinazofanyika chini ya akaunti hiyo.
 
 ## 4. Malipo na Bili
-Huduma inatumia mifumo miwili ya malipo:
-- **Coins**: Unanunua coins zinazotumika kwa kila ujumbe wa AI unaotumwa
-- **Subscription**: Mpango wa kila mwezi wenye idadi maalum ya mazungumzo
+Huduma inatumia mfumo wa subscription pekee. Unachagua mpango — wa siku, wiki, mwezi, au miezi mitatu — wenye idadi maalum ya mazungumzo na muda maalum wa kutumika.
 
-Bei zote ziko kwa Shilingi za Tanzania (TZS). Malipo yanayofanyika kwa M-Pesa au njia nyingine za simu yanathibitishwa na admin kabla ya coins au subscription kuwashwa. Coins na malipo ya subscription hayarudishwi isipokuwa kama sheria inahitaji hivyo.
-
+Bei zote ziko kwa Shilingi za Tanzania (TZS). Malipo yanayofanyika kwa M-Pesa au njia nyingine za simu yanathibitishwa na admin kabla ya mpango kuwashwa. Mpango ukiisha muda au mazungumzo yake kuisha, bot yako itasimama kufanya kazi mpaka utakaponunua mpango mpya. Malipo ya subscription hayarudishwi isipokuwa kama sheria inahitaji hivyo.
 ## 5. Matumizi Yanayokubalika
 Unakubali kutotumia Huduma kwa:
 - Kutuma spam au ujumbe usiotakiwa
@@ -72,18 +68,15 @@ const TERMS_EN = `
 By accessing or using Wakalabot ("the Service"), you agree to be bound by these Terms of Service and all applicable laws of the United Republic of Tanzania.
 
 ## 2. Description of Service
-Wakalabot is an AI platform that helps Tanzanian businesses respond to customers automatically via web chat, QR code, and an embeddable website widget. The Service includes product management, a knowledge base, lead tracking, and SMS notifications.
+Wakalabot is an AI platform that helps Tanzanian businesses and organizations respond to customers or visitors automatically via web chat, QR code, and an embeddable website widget. The Service offers two modes: a commerce bot (products, services, and lead tracking) and an information-only bot (answers questions without selling anything). The Service includes content management, a knowledge base, lead or inquiry tracking, and SMS notifications.
 
 ## 3. User Accounts
 You must register a business account using a username, business name, and password to use the Service. Phone number and email are optional but recommended for contact and notifications. You are responsible for maintaining the confidentiality of your account credentials and for all activity under your account.
 
 ## 4. Payment & Billing
-The Service operates on two billing systems:
-- **Coins**: purchased and consumed per AI message sent
-- **Subscription**: a monthly plan with a fixed message allowance
+The Service operates on a subscription-only model. You choose a plan — daily, weekly, monthly, or quarterly — with a fixed message allowance and a fixed duration.
 
-All pricing is in Tanzanian Shillings (TZS). Payments made via M-Pesa or other mobile channels are verified by an administrator before coins or a subscription are activated. Purchased coins and subscription payments are non-refundable except as required by applicable law.
-
+All pricing is in Tanzanian Shillings (TZS). Payments made via M-Pesa or other mobile channels are verified by an administrator before a plan is activated. When a plan expires or its message allowance is used up, your bot stops responding until a new plan is purchased. Subscription payments are non-refundable except as required by applicable law.
 ## 5. Acceptable Use
 You agree not to use the Service to:
 - Send spam or unsolicited messages

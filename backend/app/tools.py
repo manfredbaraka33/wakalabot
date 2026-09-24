@@ -348,10 +348,31 @@ class ToolExecutor:
         )
         products = result.scalars().all()
         if not products:
-            return json.dumps({"found": False, "products": [], "message": "Hakuna bidhaa zilizopatikana kwa sasa."})
+            return json.dumps({
+                "found": False,
+                "products": [],
+                "message": "Hakuna bidhaa zilizopatikana kwa sasa."
+            })
+
+        # Build the COMPLETE formatted list server-side — the AI never
+        # retypes this, it only echoes it back verbatim. This is what
+        # guarantees no truncation regardless of list length.
+        lines = []
+        for p in products:
+            price_str = (
+                f"{int(p.price_min):,}–{int(p.price_max):,} TZS"
+                if p.price_min and p.price_max
+                else f"{int(p.price):,} TZS"
+            )
+            stock_note = "" if p.stock_quantity > 0 else " (Imeisha)"
+            lines.append(f"• {p.name} — {price_str}{stock_note}")
+
+        formatted_list = "\n".join(lines)
+
         return json.dumps({
             "found": True,
             "count": len(products),
+            "formatted_list": formatted_list,   # AI must echo this verbatim
             "products": [
                 {
                     "name": p.name,
@@ -382,15 +403,28 @@ class ToolExecutor:
         )
         services = result.scalars().all()
         if not services:
-            return json.dumps({"found": False, "services": [], "message": "Hakuna huduma zilizopatikana kwa sasa."})
+            return json.dumps({
+                "found": False,
+                "services": [],
+                "message": "Hakuna huduma zilizopatikana kwa sasa."
+            })
+
+        lines = []
+        for s in services:
+            price_str = (
+                f"{int(s.price_min):,}–{int(s.price_max):,} TZS"
+                if s.price_min and s.price_max
+                else f"{int(s.price):,} TZS"
+            )
+            lines.append(f"• {s.name} — {price_str}")
+
+        formatted_list = "\n".join(lines)
+
         return json.dumps({
             "found": True,
             "count": len(services),
+            "formatted_list": formatted_list,
             "services": [
-                # {
-                #     "name": s.name,
-                #     "price_tzs": float(s.price),
-                # }
                 {
                     "name": s.name,
                     "price_display": (

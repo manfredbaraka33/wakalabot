@@ -41,6 +41,10 @@ class Tenant(Base):
     ai_mode: Mapped[str] = mapped_column(
         String(20), nullable=False, default="eco"
     )
+        # 'commerce' = sells products/services | 'info' = pure Q&A, no products
+    bot_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="commerce"
+    )
     is_verified: Mapped[bool] = mapped_column(
     Boolean, nullable=False, default=False
 )
@@ -64,6 +68,10 @@ class Tenant(Base):
     delivery_zones: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     business_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     logo_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+
+    directory_visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    directory_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    directory_tagline: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
     # ── Instagram integration ──────────────────────────────────────────────────
     instagram_page_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -529,6 +537,8 @@ class Subscription(Base):
     expires_at: Mapped[object] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+    duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    auto_renew_prompted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class UnansweredQuestion(Base):

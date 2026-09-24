@@ -521,19 +521,23 @@ function OTPRegisterForm({ onSuccess }) {
 // ─────────────────────────────────────────────────────────────────────────
 // Auth modal overlay — shows business context so customer knows why
 // ─────────────────────────────────────────────────────────────────────────
-function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, showGuestInfo, setShowGuestInfo,enterGuestMode }) {
+
+
+function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, showGuestInfo, setShowGuestInfo, enterGuestMode }) {
+  // Use either onGuestEnter or enterGuestMode
+  const handleGuestClick = onGuestEnter || enterGuestMode;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0">
       <div className="w-full max-h-130 p-4 overflow-auto max-w-sm bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl">
         {activeBiz && (
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800 bg-gray-800/50 rounded-t-2xl">
             <div className="w-10 h-10 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                 
               {activeBiz.logo_url ? (
-                    <img src={activeBiz.logo_url} alt={activeBiz.biz_name} className="w-full h-full rounded-full object-cover" />
-                  ) : (
-                    <span className="text-indigo-400 text-xs font-bold">{activeBiz.biz_name.charAt(0).toUpperCase()}</span>
-                  )}
+                <img src={activeBiz.logo_url} alt={activeBiz.biz_name} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <span className="text-indigo-400 text-xs font-bold">{activeBiz.biz_name.charAt(0).toUpperCase()}</span>
+              )}
             </div>
             <div>
               <p className="text-white text-sm font-semibold">{activeBiz.biz_name}</p>
@@ -555,54 +559,53 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, 
         )}
 
         <div className="p-5 space-y-4">
-                  {/* Guest chat option */}
-          <div className="mt-1 pt-3 border-t border-gray-800/60">
-            {!showGuestInfo ? (
+          {/* Guest chat option - Instant entry with collapsible info */}
+          <div className="mt-1 pt-3 border-t border-gray-800/60 space-y-2">
+            <button
+              type="button"
+              onClick={handleGuestClick}
+              className="w-full py-2.5 rounded-xl text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/30 transition-colors shadow-lg shadow-blue-600/20"
+            >
+              Chati bila kusajili →
+            </button>
+
+            <div className="text-center">
               <button
-                onClick={() => setShowGuestInfo(true)}
-                className="w-full py-2.5 rounded-xl text-xs text-gray-50 hover:text-gray-100 bg-blue-600 border border-gray-700/40 hover:border-gray-600 transition-colors"
+                type="button"
+                onClick={() => setShowGuestInfo(!showGuestInfo)}
+                className="text-[11px] text-gray-400 hover:text-gray-300 underline transition-colors inline-flex items-center gap-1"
               >
-                Chati bila kusajili →
+                <span>ℹ️</span> {showGuestInfo ? "Ficha maelezo" : "Soma vigezo vya mgeni"}
               </button>
-            ) : (
-              <div className="space-y-3">
-                <div className="bg-gray-800/50 border border-gray-700/40 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-semibold text-white">Kabla ya kuendelea:</p>
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    📋 Mfanyabiashara ataona mazungumzo yako kwenye dashibodi yake
-                  </p>
-                  <p className="text-xs text-amber-400/80 leading-relaxed">
-                    ⚠️ Historia yako haitahifadhiwa — itafutwa ukifunga kivinjari
-                  </p>
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    ✅ Unaweza kujisajili wakati wowote ili kupata historia
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowGuestInfo(false)}
-                    className="flex-1 py-2 rounded-xl text-xs text-gray-400 border border-gray-700 hover:border-gray-600 transition-colors"
-                  >
-                    Rudi
-                  </button>
-                  <button
-                    onClick={onGuestEnter}
-                    className="flex-1 py-2 rounded-xl text-xs bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
-                  >
-                    Endelea bila akaunti
-                  </button>
-                </div>
+            </div>
+
+            {showGuestInfo && (
+              <div className="bg-gray-800/50 border border-gray-700/40 rounded-xl p-3 space-y-1.5 text-left animate-in fade-in duration-200">
+                <p className="text-xs font-semibold text-white">Mambo ya kuzingatia:</p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  📋 Mfanyabiashara ataona mazungumzo yako kwenye dashibodi yake.
+                </p>
+                <p className="text-[11px] text-amber-400/80 leading-relaxed">
+                  ⚠️ Historia yako haitahifadhiwa — itafutwa ukifunga kivinjari.
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  ✅ Unaweza kujisajili wakati wowote ili kupata historia.
+                </p>
               </div>
             )}
           </div>
+
+          {/* Login / Register Toggle */}
           <div className="flex rounded-lg bg-gray-800 p-1">
             <button
+              type="button"
               onClick={() => setAuthMode('login')}
               className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${authMode === 'login' ? 'bg-indigo-600 text-gray-50' : 'text-gray-400'}`}
             >
               Ingia
             </button>
             <button
+              type="button"
               onClick={() => setAuthMode('register')}
               className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${authMode === 'register' ? 'bg-indigo-600 text-white' : 'text-gray-400'}`}
             >
@@ -888,22 +891,30 @@ async function doSend(text) {
     })
 
     if (!res.ok) {
-      const err = await res.json()
-      let errorString = 'Something went wrong.'
-      if (typeof err.detail === 'string') {
-        errorString = err.detail
-      } else if (Array.isArray(err.detail)) {
-        errorString = err.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ')
-      }
-      setMessages(prev => [...prev, {
-        id: null, 
-        role: 'assistant', 
-        content: errorString, 
-        image_urls: [],
-        timestamp: new Date().toISOString(),
-      }])
-      return
-    }
+  const err = await res.json().catch(() => ({}))
+  
+  // 1. If you WANT to show your fixed default text on 402 instead of the backend message:
+  let errorString = res.status === 402 
+    ? 'Samahani. Huduma hii haipatikani kwa sasa.' 
+    : (typeof err.detail === 'string' ? err.detail : 'Samahani. Huduma hii haipatikani kwa sasa.')
+
+  // 2. If err.detail is a validation array (FastAPI 422 errors)
+  if (Array.isArray(err.detail)) {
+    errorString = err.detail.map(e => `${e.loc?.join('.') || ''}: ${e.msg}`).join(', ')
+  }
+
+  setMessages(prev => [...prev, {
+    id: null, 
+    role: res.status === 402 ? 'system' : 'assistant', 
+    content: errorString, 
+    image_urls: [],
+    timestamp: new Date().toISOString(),
+  }])
+
+  // 3. UNLOCK THE UI: Reset loading so the user can send messages again
+  setLoading(false)
+  return
+}
 
     const data = await res.json()
 
@@ -1216,7 +1227,18 @@ async function doSend(text) {
 
             {/* Messages */}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" onScroll={handleScroll}>
-              {messages.map((msg, i) => (
+                            {messages.map((msg, i) => {
+                if (msg.role === 'system') {
+                  return (
+                    <div key={i} className="flex justify-center my-2">
+                      <div className="max-w-[85%] flex items-center gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-2.5">
+                        <span className="text-amber-400 text-sm shrink-0">⚠️</span>
+                        <p className="text-amber-300 text-xs leading-relaxed">{msg.content}</p>
+                      </div>
+                    </div>
+                  )
+                }
+                return (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`group relative max-w-xs lg:max-w-md flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     {msg.role=='user' ? (
@@ -1305,7 +1327,7 @@ async function doSend(text) {
                     </p>
                   </div>
                 </div>
-              ))}
+              )})}
 
               {loading && (
                 <div className="flex justify-start">

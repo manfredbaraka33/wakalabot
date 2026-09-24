@@ -30,6 +30,8 @@ import SuperAdminCustomers from './features/superadmin/SuperAdminCustomers'
 import SuperAdminBroadcast from './features/superadmin/SuperAdminBroadcast'
 import SuperAdminFeedback from './features/superadmin/SuperAdminFeedback'
 import UnansweredQuestions from './features/dashboard/UnansweredQuestions'
+import InfoSettings from './features/onboarding/InfoSettings'
+import InstallPrompt from './components/InstallPrompt'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -44,11 +46,14 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        {/* Rendered globally across all routes */}
+        <InstallPrompt />
+
         <Routes>
           {/* Landing */}
           <Route path="/" element={<LandingPage />} />
 
-          {/* Consumer chat — public, no auth required */}
+          {/* Consumer chat — public */}
           <Route path="/chat" element={<CustomerChat />} />
           <Route path="/chat/:slug" element={<CustomerChat />} />
 
@@ -71,6 +76,7 @@ export default function App() {
             <Route index element={<Overview />} />
             <Route path="settings" element={<ShopSettings />} />
             <Route path="knowledge" element={<KnowledgeBase />} />
+            <Route path="infosettings" element={<InfoSettings />} />
             <Route path="products" element={<Products />} />
             <Route path="conversations" element={<Conversations />} />
             <Route path="analytics" element={<Analytics />} />

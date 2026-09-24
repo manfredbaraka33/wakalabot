@@ -141,32 +141,22 @@ async def _resolve_ai_mode(tenant: Tenant, db: AsyncSession) -> str:
             return plan.get("ai_mode", "eco")
     return tenant.ai_mode
 
-
 async def _check_wallet(tenant_id: uuid.UUID, db: AsyncSession) -> None:
     now = datetime.now(timezone.utc)
     sub_result = await db.execute(
-        select(Subscription)
-        .where(
+        select(Subscription).where(
             Subscription.tenant_id == tenant_id,
             Subscription.status == "active",
             Subscription.expires_at > now,
-        )
-        .order_by(Subscription.expires_at.desc())
+        ).order_by(Subscription.expires_at.desc())
     )
     sub = sub_result.scalars().first()
     if sub and sub.messages_used < sub.messages_included:
         return
-
-    result = await db.execute(
-        select(Wallet).where(Wallet.tenant_id == tenant_id)
+    raise HTTPException(
+        status_code=402,
+        detail="Mpango wako umeisha au umefika kikomo. Nunua mpango mpya kuendelea."
     )
-    wallet = result.scalar_one_or_none()
-    if wallet is None or wallet.balance <= 0:
-        raise HTTPException(
-            status_code=402,
-            detail="Samahani, huduma hii haipo kwa sasa. Tafadhali wasiliana na biashara moja kwa moja."
-        )
-
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -237,6 +227,7 @@ async def chat_message(
             biz_name=tenant.biz_name,
             ai_mode=effective_ai_mode,
             is_guest=body.is_guest,
+            bot_type=tenant.bot_type, 
         )
 
     except APITimeoutError:
@@ -292,6 +283,7 @@ async def chat_message_noauth(
             biz_name=tenant.biz_name,
             ai_mode=effective_ai_mode,
             is_guest=True,
+            bot_type=tenant.bot_type, 
         )
 
     except APITimeoutError:

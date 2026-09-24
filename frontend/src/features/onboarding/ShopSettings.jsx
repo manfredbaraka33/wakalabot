@@ -41,55 +41,12 @@ function SectionCard({ icon: Icon, title, description, children }) {
   )
 }
 
-function CoinMathModal({ onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
-          <h3 className="text-base font-semibold text-white">Coins zinakokotolewaje</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-6 space-y-4 text-sm text-gray-300">
-          <p>Coins zinatolewa kulingana na tokens halisi zinazotumika kwa kila simu ya AI.</p>
-          <div className="bg-gray-800 rounded-lg p-4 space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Ujumbe 1 wa wastani =</p>
-            <p>Hadi <span className="text-white font-semibold">maneno 100 jumla</span> — swali la mteja + jibu la AI.</p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
-              <Zap className="w-4 h-4 text-yellow-400 shrink-0" />
-              <div>
-                <p className="text-white text-xs font-semibold">Eco Mode (gemini-3.1-flash-lite)</p>
-                <p className="text-gray-400 text-xs">≈ <span className="text-yellow-400 font-medium">coins 3</span> kwa ujumbe wa wastani</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
-              <Brain className="w-4 h-4 text-indigo-400 shrink-0" />
-              <div>
-                <p className="text-white text-xs font-semibold">Smart Mode (gemini-3.5-flash)</p>
-                <p className="text-gray-400 text-xs">≈ <span className="text-indigo-400 font-medium">coins 25</span> kwa ujumbe wa wastani</p>
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 border-t border-gray-800 pt-3">
-            Kumbuka: kama una subscription inayoendelea, AI model yako imewekwa kulingana na mpango wako
-            na coins hazitolewi mpaka mazungumzo ya mwezi yatakapoisha.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
+
 
 export default function ShopSettings() {
   const [saveStatus, setSaveStatus] = useState('idle')
   const [copied, setCopied] = useState(false)
   const [copiedWidget, setCopiedWidget] = useState(false)
-  const [aiModeSaving, setAiModeSaving] = useState(false)
-  const [aiModeSaved, setAiModeSaved] = useState(false)
-  const [showCoinModal, setShowCoinModal] = useState(false)
   const queryClient = useQueryClient()
   const qrRef = useRef(null)
 
@@ -156,9 +113,6 @@ useEffect(() => {
 }, [])
 
   const hasSubscription = !!subscription?.has_subscription
-  const activeAiMode = hasSubscription
-    ? (subscription.plan_id === 'pro' ? 'smart' : 'eco')
-    : (tenantData?.user?.ai_mode || 'eco')
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -186,34 +140,7 @@ useEffect(() => {
     }
   }
 
-  async function saveAiMode(mode) {
-    if (hasSubscription) return // locked — plan dictates model, never client-toggleable
-
-    setAiModeSaving(true)
-    const previousData = queryClient.getQueryData(['tenant-info'])
-
-    queryClient.setQueryData(['tenant-info'], (oldData) => {
-      if (!oldData) return { user: { ai_mode: mode } }
-      return { ...oldData, user: { ...oldData.user, ai_mode: mode } }
-    })
-
-    try {
-      await apiClient.patch('/api/v1/auth/ai-mode', { ai_mode: mode })
-      queryClient.setQueryData(['tenant-info'], (oldData) => {
-        return { ...oldData, user: { ...oldData.user, ai_mode: mode } }
-      })
-      setAiModeSaved(true)
-      setTimeout(() => setAiModeSaved(false), 3000)
-    } catch (error) {
-      if (previousData) {
-        queryClient.setQueryData(['tenant-info'], previousData)
-      }
-      alert('Imeshindwa kubadilisha AI model. Tafadhali jaribu tena.')
-    } finally {
-      setAiModeSaving(false)
-    }
-  }
-
+ 
   const slug = tenantData?.user?.slug ?? null
   const baseUrl = window.location.origin
   const chatLink = slug ? `${baseUrl}/chat/${slug}` : null
@@ -240,9 +167,6 @@ useEffect(() => {
     alert('Imeshindwa kutengeneza QR. Tafadhali jaribu tena.')
   }
 }
-
- 
-
 
 
 
@@ -409,7 +333,7 @@ useEffect(() => {
         {/* Website */}
         <SectionCard
           icon={Globe}
-          title="Website ya Biashara"
+          title="Website"
           description="AI inaweza kupakua taarifa za moja kwa moja kutoka website yako pale mteja anapouliza vitu visivyokuwa kwenye knowledge base."
         >
           <input
@@ -556,145 +480,27 @@ useEffect(() => {
         </div>
       </div>
 
-
-      {/* Instagram Integration
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-lg bg-pink-500/15 flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-pink-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h2 className="text-base font-semibold text-white">Instagram Direct Messages</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Unganisha akaunti yako ya Instagram Business ili AI yako ijibu DMs moja kwa moja.
-            </p>
-          </div>
-        </div>
-
-        {igStatus?.connected ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <p className="text-xs text-emerald-400 font-medium">Instagram imeunganishwa kikamilifu</p>
-            </div>
-            <p className="text-xs text-gray-500">
-              Page ID: <span className="font-mono">{igStatus.page_id}</span>
-            </p>
-            <button
-              onClick={async () => {
-                if (!confirm('Una uhakika unataka kutenganisha Instagram?')) return
-                await apiClient.delete('/api/v1/instagram/disconnect')
-                refetchIg()
-              }}
-              className="text-xs text-red-400 hover:text-red-300 border border-red-500/20 rounded-lg px-3 py-1.5 hover:bg-red-500/10 transition-colors"
-            >
-              Tenganisha Instagram
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="bg-gray-800/60 border border-gray-700/40 rounded-lg p-3 space-y-1.5">
-              <p className="text-xs text-gray-300 font-medium">Unahitaji:</p>
-              <p className="text-xs text-gray-500">✓ Akaunti ya Instagram Business au Creator</p>
-              <p className="text-xs text-gray-500">✓ Facebook Page iliyounganishwa na Instagram yako</p>
-              <p className="text-xs text-gray-500">✓ Ruhusa ya kuunganisha apps kwenye Page</p>
-            </div>
-            <button
-              onClick={() => {
-                window.location.href = '/api/v1/instagram/connect'
-              }}
-              className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors"
-              style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="white">
-                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-              </svg>
-              Unganisha Instagram
-            </button>
-          </div>
-        )}
-      </div>
-
- */}
-
-      {/* AI Model Selector */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
+      {/* AI Model — read-only, subscription-driven */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
             <Brain className="w-4 h-4 text-indigo-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-white">Chagua AI Model Yako</h2>
+            <h2 className="text-base font-semibold text-white">AI Model</h2>
             {hasSubscription ? (
               <p className="text-xs text-gray-400 mt-0.5">
-                Una mpango wa <span className="text-indigo-400 font-medium capitalize">{subscription.plan_id}</span> —
-                AI model imewekwa kiotomatiki kulingana na mpango wako. Chaguo hapa chini halitatumika ukiwa na mpango.
+                Mpango wako wa <span className="text-indigo-400 font-medium capitalize">{subscription.plan_id}</span> unatumia{' '}
+                <span className="text-white font-medium">
+                  {subscription.plan_id === 'pro' ? '🧠 Smart Mode' : '⚡ Eco Mode'}
+                </span>.
               </p>
             ) : (
               <p className="text-xs text-gray-400 mt-0.5">
-                Chagua jinsi msaidizi wako alivyo mahiri na gharama yake.{' '}
-                <button type="button" onClick={() => setShowCoinModal(true)} className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
-                  Jifunze jinsi inavyokokotolewa
-                </button>
+                Huna mpango. Chagua mpango kwenye Billing ili AI yako iwezeshwe.
               </p>
             )}
           </div>
-        </div>
-
-        {hasSubscription && (
-          <div className="flex items-center gap-2 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2">
-            <Lock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <p className="text-xs text-indigo-300">
-              Imefungwa na subscription yako ya {subscription.plan_id}
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <button
-            type="button"
-            disabled={hasSubscription}
-            onClick={() => saveAiMode('eco')}
-            className={`w-full flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
-              hasSubscription ? 'opacity-40 cursor-not-allowed' : ''
-            } ${
-              activeAiMode === 'eco' ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
-            }`}
-          >
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${activeAiMode === 'eco' ? 'border-yellow-400' : 'border-gray-600'}`}>
-              {activeAiMode === 'eco' && <div className="w-2 h-2 rounded-full bg-yellow-400" />}
-            </div>
-            <Zap className={`w-5 h-5 shrink-0 ${activeAiMode === 'eco' ? 'text-yellow-400' : 'text-gray-500'}`} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">⚡ Eco Mode</p>
-              <p className="text-xs text-gray-400 mt-0.5">Inatumia coins chache</p>
-            </div>
-          </button>
-          <button
-            type="button"
-            disabled={hasSubscription}
-            onClick={() => saveAiMode('smart')}
-            className={`w-full flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
-              hasSubscription ? 'opacity-40 cursor-not-allowed' : ''
-            } ${
-              activeAiMode === 'smart' ? 'border-indigo-500/50 bg-indigo-500/5' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
-            }`}
-          >
-            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${activeAiMode === 'smart' ? 'border-indigo-400' : 'border-gray-600'}`}>
-              {activeAiMode === 'smart' && <div className="w-2 h-2 rounded-full bg-indigo-400" />}
-            </div>
-            <Brain className={`w-5 h-5 shrink-0 ${activeAiMode === 'smart' ? 'text-indigo-400' : 'text-gray-500'}`} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">🧠 Smart Mode</p>
-              <p className="text-xs text-gray-400 mt-0.5">Inatumia coins zaidi, lakini ni mahiri zaidi</p>
-            </div>
-          </button>
-        </div>
-        <div className="text-xs text-gray-500 flex items-center gap-2 h-4">
-          {aiModeSaving && <><Loader2 className="w-3 h-3 animate-spin" /> Inahifadhi...</>}
-          {aiModeSaved && <span className="text-indigo-400">✓ Model imesasishwa</span>}
         </div>
       </div>
 
@@ -782,7 +588,37 @@ useEffect(() => {
         </div>
       )}
 
-      {showCoinModal && <CoinMathModal onClose={() => setShowCoinModal(false)} />}
+      {chatLink && <TestBotPanel chatLink={chatLink} />}
+
+      
+    </div>
+  )
+}
+
+
+function TestBotPanel({ chatLink }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-white">Jaribu Bot Yako</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Ona jinsi wateja wanavyoona bot yako, papo hapo.</p>
+        </div>
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
+        >
+          {open ? 'Funga' : 'Jaribu Sasa'}
+        </button>
+      </div>
+      {open && (
+        <iframe
+          src={chatLink}
+          className="w-full h-[500px] mt-4 rounded-xl border border-gray-700"
+          title="Test Bot"
+        />
+      )}
     </div>
   )
 }

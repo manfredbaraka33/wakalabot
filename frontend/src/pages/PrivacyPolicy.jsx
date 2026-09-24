@@ -20,8 +20,8 @@ Wakalabot ("sisi", "yetu") tunajitolea kulinda taarifa zako binafsi kulingana na
 - Logo ya biashara unayopakia
 
 ### Taarifa za Malipo
-- Historia ya manunuzi ya coins na subscription
-- Salio la wallet
+- Historia ya subscription na malipo ya mipango (siku, wiki, mwezi, miezi mitatu)
+- Hali ya mpango wako wa sasa
 
 ### Taarifa za Matumizi
 - Maudhui ya Knowledge Base na bidhaa unazoweka
@@ -35,7 +35,7 @@ Wakalabot ("sisi", "yetu") tunajitolea kulinda taarifa zako binafsi kulingana na
 Tunatumia taarifa zako kwa:
 - Kutoa na kuboresha huduma ya Wakalabot
 - Kuthibitisha namba za simu za wateja kupitia SMS OTP
-- Kushughulikia bili za coins na subscription
+- Kushughulikia malipo ya subscription
 - Kuzalisha majibu ya AI kwa niaba yako kutumia Knowledge Base yako
 - Kutuma SMS za arifa muhimu (lead mpya, malipo yamekubaliwa, salio limepungua)
 - Kutoa msaada wa Support
@@ -106,8 +106,8 @@ Wakalabot ("we", "us", "our") is committed to protecting your personal informati
 - Business logo you upload
 
 ### Transaction Data
-- Coin purchase and subscription history
-- Wallet balance
+- Subscription and plan payment history (daily, weekly, monthly, quarterly)
+- Current plan status
 
 ### Usage Data
 - Knowledge Base content and products you add
@@ -121,7 +121,7 @@ Wakalabot ("we", "us", "our") is committed to protecting your personal informati
 We use your data to:
 - Provide and improve the Wakalabot service
 - Verify customer phone numbers via SMS OTP
-- Process coin and subscription billing
+- Process subscription billing
 - Generate AI responses on your behalf using your Knowledge Base
 - Send important SMS notifications (new leads, payment approvals, low balance alerts)
 - Provide customer support

@@ -63,6 +63,16 @@ def _create_superadmin_token() -> str:
     )
 
 
+def _period_label(duration_days: int) -> str:
+    if duration_days <= 1:
+        return "siku ya leo"
+    if duration_days <= 7:
+        return "wiki hii"
+    if duration_days <= 31:
+        return "mwezi huu"
+    return f"kipindi cha siku {duration_days}"
+
+
 def _verify_superadmin_token(token: str) -> None:
     exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -705,6 +715,8 @@ async def list_payment_requests(
     }
 
 
+
+
 @router.post("/payment-requests/{request_id}/approve", dependencies=[Depends(get_superadmin)])
 async def approve_payment_request(
     request_id: uuid.UUID,
@@ -729,6 +741,8 @@ async def approve_payment_request(
             raise HTTPException(status_code=400, detail="Invalid plan")
 
         now = datetime.now(timezone.utc)
+        duration_days = plan.get("duration_days", 30)
+        period_label = _period_label(duration_days)
 
         # Deactivate existing subscription if any
         existing_sub = await db.execute(
@@ -750,32 +764,27 @@ async def approve_payment_request(
             messages_used=0,
             status="active",
             started_at=now,
-            expires_at=now + timedelta(days=30),
+            expires_at=now + timedelta(days=duration_days),
+            duration_days=duration_days,
         ))
 
+        # Send SMS to merchant
         from app.sms import send_sms
         tenant_obj = await db.get(Tenant, req.tenant_id)
         if tenant_obj and tenant_obj.phone:
-            if req.package_id.startswith("sub_"):
-                await send_sms(
-                    tenant_obj.phone,
-                    f"✅ Mpango wa {plan['label']} umewashwa! "
-                    f"Mazungumzo {plan['messages_included']:,}/mwezi."
-                )
-            else:
-                await send_sms(
-                    tenant_obj.phone,
-                    f"✅ Coins {req.coins_requested:,} zimeongezwa. "
-                    f"Salio jipya: {wallet.balance:,} coins."
-                )
+            await send_sms(
+                tenant_obj.phone,
+                f"✅ Mpango wa {plan['label']} umewashwa! "
+                f"Mazungumzo {plan['messages_included']:,}/{period_label}."
+            )
 
-        # Notify merchant
+        # Notify merchant in-app
         db.add(Notification(
             tenant_id=req.tenant_id,
             type="new_message",
             message=(
                 f"✅ Mpango wako wa {plan['label']} umewashwa! "
-                f"Una mazungumzo {plan['messages_included']:,} kwa mwezi huu."
+                f"Una mazungumzo {plan['messages_included']:,} kwa {period_label}."
             ),
             is_read=False,
         ))
@@ -790,15 +799,15 @@ async def approve_payment_request(
                 tx_type="credit",
                 amount_tzs=plan["amount_tzs"],
                 package_id=req.package_id,
-                note=f"Subscription activated: {plan['label']} ({plan['messages_included']:,} messages/month). Ref: {req.mpesa_ref}",
+                note=f"Subscription activated: {plan['label']} ({plan['messages_included']:,} messages/{period_label}). Ref: {req.mpesa_ref}",
             ))
-
 
     else:
         # Regular coin top-up
         wallet = await db.scalar(select(Wallet).where(Wallet.tenant_id == req.tenant_id))
         if not wallet:
             raise HTTPException(status_code=404, detail="Wallet not found")
+        
         wallet.balance += req.coins_requested
         db.add(Transaction(
             tenant_id=req.tenant_id,
@@ -809,21 +818,16 @@ async def approve_payment_request(
             package_id=req.package_id,
             note=f"Manual top-up approved. Ref: {req.mpesa_ref}",
         ))
+
         from app.sms import send_sms
         tenant_obj = await db.get(Tenant, req.tenant_id)
         if tenant_obj and tenant_obj.phone:
-            if req.package_id.startswith("sub_"):
-                await send_sms(
-                    tenant_obj.phone,
-                    f"✅ Mpango wa {plan['label']} umewashwa! "
-                    f"Mazungumzo {plan['messages_included']:,}/mwezi."
-                )
-            else:
-                await send_sms(
-                    tenant_obj.phone,
-                    f"✅ Coins {req.coins_requested:,} zimeongezwa. "
-                    f"Salio jipya: {wallet.balance:,} coins."
-                )
+            await send_sms(
+                tenant_obj.phone,
+                f"✅ Coins {req.coins_requested:,} zimeongezwa. "
+                f"Salio jipya: {wallet.balance:,} coins."
+            )
+
         db.add(Notification(
             tenant_id=req.tenant_id,
             type="new_message",
@@ -835,6 +839,8 @@ async def approve_payment_request(
     req.admin_note = payload.admin_note
     await db.commit()
     return {"status": "approved"}
+
+
 
 
 @router.post("/payment-requests/{request_id}/reject", dependencies=[Depends(get_superadmin)])
@@ -1205,13 +1211,15 @@ async def set_tenant_plan(
         messages_used=0,
         status="active",
         started_at=now,
-        expires_at=now + timedelta(days=30),
+        expires_at=now + timedelta(days=plan["duration_days"]),
+        duration_days=plan.get("duration_days", 30),
     ))
 
+    period_label = _period_label(plan.get("duration_days", 30))
     db.add(Notification(
         tenant_id=tenant_id,
         type="new_message",
-        message=f"✅ Mpango wako umewekwa hadi {plan['label']} ({plan['messages_included']:,} mazungumzo/mwezi) na admin.",
+        message=f"✅ Mpango wako umewekwa hadi {plan['label']} ({plan['messages_included']:,} mazungumzo kwa {period_label}) na admin.",
         is_read=False,
     ))
 
