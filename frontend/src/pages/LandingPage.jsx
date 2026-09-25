@@ -133,7 +133,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-sm text-gray-500 font-medium">
-            🎁 Fungua akaunti bila malipo — hauhitaji kadi yoyote kuanza!
+            🎁 Fungua akaunti bila malipo — hauhitaji kadi yoyote kuanza!!
           </p>
         </div>
 
