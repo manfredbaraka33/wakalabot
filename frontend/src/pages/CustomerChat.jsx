@@ -1104,7 +1104,7 @@ async function doSend(text) {
               </div>
               {/* <p className="text-gray-400 text-sm font-medium">Select a business to start chatting</p>
               <p className="text-gray-600 text-xs">Choose from the directory on the left</p> */}
-              <p className="text-gray-600 text-xs">Loading chat...</p> 
+              <p className="text-gray-600 text-xs">Loading chat.... please wait</p> 
               <RefreshButton /> <br />
               <Link to='/' className='text-indigo-600'>Home</Link>
             </div>
@@ -1206,8 +1206,8 @@ async function doSend(text) {
             <div
               className={`shrink-0 flex items-start gap-3 px-4 py-3 border-b border-amber-500/30 dark:border-amber-500/20 transition-all ${
                 noticeRead
-                  ? 'bg-amber-100 dark:bg-amber-500/5'
-                  : 'bg-amber-100 dark:bg-amber-500/10 animate-pulse'
+                  ? 'bg-amber-500/5 dark:bg-amber-500/5'
+                  : 'bg-amber-500/5 dark:bg-amber-500/10 animate-pulse'
               }`}
               style={noticeRead ? {} : { animationDuration: '2s' }}
             >
