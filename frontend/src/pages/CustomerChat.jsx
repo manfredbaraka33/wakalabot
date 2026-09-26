@@ -1205,8 +1205,8 @@ async function doSend(text) {
               <div
                     className={`shrink-0 flex items-start gap-3 px-4 py-3 border-b border-amber-500/30 dark:border-amber-500/20 transition-all ${
                       noticeRead
-                        ? 'bg-amber-100 dark:bg-amber-500/5'
-                        : 'bg-amber-100 dark:bg-amber-500/10 animate-pulse'
+                        ? 'bg-amber-500/5 dark:bg-amber-500/5'
+                        : 'bg-amber-500/5 dark:bg-amber-500/10 animate-pulse'
                     }`}
                     style={noticeRead ? {} : { animationDuration: '2s' }}
                   >
@@ -1221,7 +1221,7 @@ async function doSend(text) {
                       const readKey = `wk_notice_read_${activeBiz.slug}_${notice.slice(0, 20)}`
                       localStorage.setItem(readKey, '1')
                     }}
-                    className="shrink-0 text-[10px] text-amber-700 dark:text-amber-400 border border-amber-600/40 dark:border-amber-500/30 rounded-md px-2 py-0.5 hover:bg-amber-200 dark:hover:bg-amber-500/20 transition-colors"
+                    className="shrink-0 text-[10px] text-amber-700 dark:text-amber-400 border border-amber-600/40 dark:border-amber-500/30 rounded-md px-2 py-0.5 hover:bg-amber-500 dark:hover:bg-amber-500/20 transition-colors"
                   >
                     Got it
                   </button>
