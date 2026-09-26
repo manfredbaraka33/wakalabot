@@ -32,6 +32,7 @@ import SuperAdminFeedback from './features/superadmin/SuperAdminFeedback'
 import UnansweredQuestions from './features/dashboard/UnansweredQuestions'
 import InfoSettings from './features/onboarding/InfoSettings'
 import InstallPrompt from './components/InstallPrompt'
+import AppEntry from './pages/AppEntry'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -51,7 +52,8 @@ export default function App() {
 
         <Routes>
           {/* Landing */}
-          <Route path="/" element={<LandingPage />} />
+          {/* <Route path="/" element={<LandingPage />} /> */}
+          <Route path="/" element={<><AppEntry /><LandingPage /></>} />
 
           {/* Consumer chat — public */}
           <Route path="/chat" element={<CustomerChat />} />

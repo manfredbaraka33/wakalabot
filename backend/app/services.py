@@ -448,12 +448,35 @@ class AIEngine:
             notice_row.content[len("__CUSTOMER_NOTICE__:"):].strip()
             if notice_row else None
         )
+        # notice_block = (
+        #     f"\n9. ACTIVE NOTICE.\n"
+        #     f'The organization has posted this notice to all customers: "{active_notice}"\n'
+        #     f"Mention this notice naturally in your FIRST reply to the customer.\n"
+        #     f"If the notice affects their question (e.g. delivery paused, office closed), "
+        #     f"address it directly and prioritize it over other information.\n"
+        # ) if active_notice else ""
+
+        # Only inject the notice instruction if it hasn't already been
+        # mentioned in this conversation — checked by scanning recent
+        # assistant messages for a fragment of the notice text itself.
+        already_mentioned_notice = False
+        if active_notice and history:
+            notice_fragment = active_notice[:20].lower()
+            for msg in history:
+                if msg.role == "assistant" and notice_fragment in (msg.content or "").lower():
+                    already_mentioned_notice = True
+                    break
+
         notice_block = (
             f"\n9. ACTIVE NOTICE.\n"
-            f'The organization has posted this notice to all customers: "{active_notice}"\n'
-            f"Mention this notice naturally in your FIRST reply to the customer.\n"
-            f"If the notice affects their question (e.g. delivery paused, office closed), "
-            f"address it directly and prioritize it over other information.\n"
+            f'The organization has posted this notice: "{active_notice}"\n'
+            f"You have NOT yet told this customer about it. Mention it naturally once, "
+            f"in this reply.\n"
+        ) if (active_notice and not already_mentioned_notice) else (
+            f"\n9. NOTICE ALREADY GIVEN.\n"
+            f"You already told this customer about the active notice earlier in this "
+            f"conversation. Do NOT repeat it again unless they ask about something the "
+            f"notice specifically affects.\n"
         ) if active_notice else ""
 
         # ── 3. Post-deal detection (commerce only, harmless no-op for info) ──

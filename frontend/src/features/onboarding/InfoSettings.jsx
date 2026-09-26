@@ -42,7 +42,7 @@ function SectionCard({ icon: Icon, title, description, children }) {
 function TestBotPanel({ chatLink }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-white">Jaribu Bot Yako</h2>
@@ -55,13 +55,26 @@ function TestBotPanel({ chatLink }) {
           {open ? 'Funga' : 'Jaribu Sasa'}
         </button>
       </div>
-      {open && (
+      {/* {open && (
         <iframe
           src={chatLink}
           className="w-full h-[500px] mt-4 rounded-xl border border-gray-700"
           title="Test Bot"
         />
-      )}
+      )} */}
+      
+      {open && (
+      
+      <div className="mt-4 w-full rounded-xl border border-gray-700 overflow-auto">
+        <iframe
+          src={chatLink}
+          className="w-full h-[500px] block"
+          style={{ maxWidth: '100%', border: 'none' }}
+          title="Test Bot"
+        />
+      </div>
+    )}
+
     </div>
   )
 }

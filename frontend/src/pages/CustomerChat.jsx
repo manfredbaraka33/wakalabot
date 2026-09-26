@@ -704,8 +704,12 @@ function enterGuestMode() {
     if (!slug) return
     fetch(`${API}/api/v1/chat/business/${slug}`)
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
-      .then(biz => {
-        setActiveBiz(biz)
+      // .then(biz => {
+      //   setActiveBiz(biz)
+            .then(biz => {
+            setActiveBiz(biz)
+            // Remember this so PWA reopens land back here, not on marketing page
+            localStorage.setItem('wk_last_chat_slug', biz.slug)
 
         // Load notice for this business
         fetch(`${API}/api/v1/chat/notice/${slug}`)
@@ -1114,7 +1118,7 @@ async function doSend(text) {
             <div style={{ flexShrink: 0 }} className="px-4 py-3 border-b border-gray-800 bg-gray-900 flex items-center gap-3">
               {slug && !isGuest && (
                 <button onClick={() => navigate('/chat')} className="text-gray-500 hover:text-white transition-colors">
-                  {/* <ArrowLeft className="w-4 h-4" /> */}
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
               )}
               <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
@@ -1199,25 +1203,25 @@ async function doSend(text) {
             {/* Notice banner */}
             {notice && activeBiz && (
               <div
-                className={`shrink-0 flex items-start gap-3 px-4 py-3 border-b border-amber-500/20 transition-all ${
-                  noticeRead
-                    ? 'bg-amber-500/5'
-                    : 'bg-amber-500/10 animate-pulse'
-                }`}
-                style={noticeRead ? {} : { animationDuration: '2s' }}
-              >
-                <span className="text-amber-400 text-base shrink-0 mt-0.5">
-                  {noticeRead ? '📢' : '⚠️'}
-                </span>
-                <p className="text-amber-300 text-xs leading-relaxed flex-1">{notice}</p>
-                {!noticeRead && (
+                    className={`shrink-0 flex items-start gap-3 px-4 py-3 border-b border-amber-500/30 dark:border-amber-500/20 transition-all ${
+                      noticeRead
+                        ? 'bg-amber-100 dark:bg-amber-500/5'
+                        : 'bg-amber-100 dark:bg-amber-500/10 animate-pulse'
+                    }`}
+                    style={noticeRead ? {} : { animationDuration: '2s' }}
+                  >
+                    <span className="text-amber-600 dark:text-amber-400 text-base shrink-0 mt-0.5">
+                      {noticeRead ? '📢' : '⚠️'}
+                    </span>
+                    <p className="text-amber-900 dark:text-amber-300 text-xs leading-relaxed flex-1 font-medium">{notice}</p>
+                  {!noticeRead && (
                   <button
                     onClick={() => {
                       setNoticeRead(true)
                       const readKey = `wk_notice_read_${activeBiz.slug}_${notice.slice(0, 20)}`
                       localStorage.setItem(readKey, '1')
                     }}
-                    className="shrink-0 text-[10px] text-amber-400 border border-amber-500/30 rounded-md px-2 py-0.5 hover:bg-amber-500/20 transition-colors"
+                    className="shrink-0 text-[10px] text-amber-700 dark:text-amber-400 border border-amber-600/40 dark:border-amber-500/30 rounded-md px-2 py-0.5 hover:bg-amber-200 dark:hover:bg-amber-500/20 transition-colors"
                   >
                     Got it
                   </button>
@@ -1389,7 +1393,7 @@ async function doSend(text) {
                     onClick={() => navigate('/chat')}
                     className="text-gray-600 hover:text-gray-400 text-xs transition-colors"
                   >
-                    {/* Tazama biashara nyingine → */}
+                    Tazama biashara nyingine →
                   </button>
                 </p>
               )}
