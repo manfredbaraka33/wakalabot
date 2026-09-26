@@ -598,37 +598,42 @@ useEffect(() => {
 
 function TestBotPanel({ chatLink }) {
   const [open, setOpen] = useState(false)
+
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 overflow-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-white">Jaribu Bot Yako</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Ona jinsi wateja wanavyoona bot yako, papo hapo.</p>
+    <>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-white">Jaribu Bot Yako</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Ona jinsi wateja wanavyoona bot yako, papo hapo.</p>
+          </div>
+          <button
+            onClick={() => setOpen(true)}
+            className="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition-colors shrink-0"
+          >
+            Jaribu Sasa
+          </button>
         </div>
-        <button
-          onClick={() => setOpen(v => !v)}
-          className="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
-        >
-          {open ? 'Funga' : 'Jaribu Sasa'}
-        </button>
       </div>
-      {/* {open && (
-        <iframe
-          src={chatLink}
-          className="w-full h-[500px] mt-4 rounded-xl border border-gray-700"
-          title="Test Bot"
-        />
-      )} */}
+
       {open && (
-        <div className="mt-4 w-full rounded-xl border border-gray-700 overflow-auto">
+        <div className="fixed inset-0 z-[100] bg-gray-950 flex flex-col">
+          <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900">
+            <p className="text-sm font-semibold text-white">Jaribu Bot Yako</p>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
           <iframe
             src={chatLink}
-            className="w-full h-[500px] block mt-5"
-            style={{ maxWidth: '100%', border: 'none' }}
+            className="flex-1 w-full border-none"
             title="Test Bot"
           />
         </div>
       )}
-    </div>
+    </>
   )
 }

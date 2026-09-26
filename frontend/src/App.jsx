@@ -32,7 +32,8 @@ import SuperAdminFeedback from './features/superadmin/SuperAdminFeedback'
 import UnansweredQuestions from './features/dashboard/UnansweredQuestions'
 import InfoSettings from './features/onboarding/InfoSettings'
 import InstallPrompt from './components/InstallPrompt'
-import AppEntry from './pages/AppEntry'
+import RootEntry from './components/RootEntry'
+import UpdateToast from './components/UpdateToast'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -49,11 +50,11 @@ export default function App() {
       <BrowserRouter>
         {/* Rendered globally across all routes */}
         <InstallPrompt />
-
+        <UpdateToast />
         <Routes>
           {/* Landing */}
           {/* <Route path="/" element={<LandingPage />} /> */}
-          <Route path="/" element={<><AppEntry /><LandingPage /></>} />
+          <Route path="/" element={<RootEntry />} />
 
           {/* Consumer chat — public */}
           <Route path="/chat" element={<CustomerChat />} />
