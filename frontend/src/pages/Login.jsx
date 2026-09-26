@@ -118,6 +118,7 @@ export default function Login() {
               Tengeneza akaunti
             </Link>
           </p>
+          <Link to='/home'>Nyumbani</Link>
         </div>
       </div>
     </div>
