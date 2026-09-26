@@ -117,8 +117,13 @@ export default function Login() {
             <Link to="/register" className="text-indigo-400 hover:underline font-medium">
               Tengeneza akaunti
             </Link>
+            
           </p>
-          <Link to='/home'>Nyumbani</Link>
+          <p className="text-center mt-1">
+             <Link className="text-xs text-indigo-600 hover:text-indigo-800 underline transition-colors"
+           to='/home'>Nyumbani</Link>
+          </p>
+         
         </div>
       </div>
     </div>

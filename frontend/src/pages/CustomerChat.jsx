@@ -362,6 +362,10 @@ function LoginForm({ onSuccess }) {
         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
         Ingia
       </button>
+      <p className="text-center mt-1">
+         <Link className="text-xs text-indigo-600 hover:text-indigo-800 underline transition-colors"
+           to='/home'>Nyumbani</Link>
+      </p>
     </form>
   )
 }
@@ -454,6 +458,10 @@ function OTPRegisterForm({ onSuccess }) {
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
           Tuma Nambari ya Uthibitisho
         </button>
+        <p className="text-center mt-1">
+         <Link className="text-xs text-indigo-600 hover:text-indigo-800 underline transition-colors"
+           to='/home'>Nyumbani</Link>
+      </p>
       </form>
     )
   }
@@ -619,6 +627,7 @@ function AuthModal({ activeBiz, authMode, setAuthMode, onSuccess, onGuestEnter, 
         </div>
 
       </div>
+      
     </div>
   )
 }
@@ -1106,7 +1115,7 @@ async function doSend(text) {
               <p className="text-gray-600 text-xs">Choose from the directory on the left</p> */}
               <p className="text-gray-600 text-xs">Inapakia.... tafadhari subiri</p> 
               <RefreshButton /> <br />
-              <Link to='/home' className='text-indigo-600'>Home/Nyumbani</Link>
+              <Link to='/home' className='text-indigo-600'>Nyumbani</Link>
             </div>
           </div>
         ) : bizError ? (
@@ -1206,15 +1215,15 @@ async function doSend(text) {
             <div
               className={`shrink-0 flex items-start gap-3 px-4 py-3 border-b border-amber-500/30 dark:border-amber-500/20 transition-all ${
                 noticeRead
-                  ? 'bg-amber-500/5 dark:bg-amber-500/5'
-                  : 'bg-amber-500/5 dark:bg-amber-500/10 animate-pulse'
+                  ? 'bg-blue-800 dark:bg-blue-950'
+                  : 'bg-blue-900 dark:bg-blue-950 animate-pulse'
               }`}
-              style={noticeRead ? {} : { animationDuration: '2s' }}
+              style={noticeRead ? {} : { animationDuration: '3s' }}
             >
-              <span className="text-amber-600 dark:text-amber-400 text-base shrink-0 mt-0.5">
+              <span className="text-amber-100 dark:text-amber-400 text-base shrink-0 mt-0.5">
                 {noticeRead ? '📢' : '⚠️'}
               </span>
-              <p className="text-amber-900 dark:text-amber-300 text-xs leading-relaxed flex-1 font-medium">{notice}</p>
+              <p className="text-amber-100 text-center dark:text-amber-300 text-xs leading-relaxed flex-1 font-medium">{notice}</p>
               {!noticeRead ? (
                 <button
                   onClick={() => {
@@ -1222,7 +1231,7 @@ async function doSend(text) {
                     const readKey = `wk_notice_read_${activeBiz.slug}_${notice.slice(0, 20)}`
                     localStorage.setItem(readKey, '1')
                   }}
-                  className="shrink-0 text-[10px] text-amber-700 dark:text-amber-400 border border-amber-600/40 dark:border-amber-500/30 rounded-md px-2 py-0.5 hover:bg-amber-200 dark:hover:bg-amber-500/20 transition-colors"
+                  className="shrink-0 text-[10px] text-amber-100 dark:text-amber-100 border border-amber-600/40 dark:border-amber-500/30 rounded-md px-2 py-0.5 hover:bg-blue-900 dark:hover:bg-blue-950 transition-colors"
                 >
                   Sawa
                 </button>
@@ -1406,7 +1415,11 @@ async function doSend(text) {
                   </button>
                 </p>
               )}
-              <button onClick={() => navigate('/home')}>Nyumbani/Home</button>
+              <p className="text-center mt-2">
+                <button className="text-xs text-indigo-600 hover:text-indigo-800 underline transition-colors"
+               onClick={() => navigate('/home')}>Nyumbani</button>
+              </p>
+              
             </form>
           </>
         )}
