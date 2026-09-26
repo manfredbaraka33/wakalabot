@@ -34,6 +34,7 @@ import InfoSettings from './features/onboarding/InfoSettings'
 import InstallPrompt from './components/InstallPrompt'
 import RootEntry from './components/RootEntry'
 import UpdateToast from './components/UpdateToast'
+import AppHome from './pages/AppHome'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -55,6 +56,7 @@ export default function App() {
           {/* Landing */}
           {/* <Route path="/" element={<LandingPage />} /> */}
           <Route path="/" element={<RootEntry />} />
+          <Route path="/home" element={<AppHome />} />
 
           {/* Consumer chat — public */}
           <Route path="/chat" element={<CustomerChat />} />

@@ -1104,9 +1104,9 @@ async function doSend(text) {
               </div>
               {/* <p className="text-gray-400 text-sm font-medium">Select a business to start chatting</p>
               <p className="text-gray-600 text-xs">Choose from the directory on the left</p> */}
-              <p className="text-gray-600 text-xs">Loading chat.... please wait</p> 
+              <p className="text-gray-600 text-xs">Inapakia.... tafadhari subiri</p> 
               <RefreshButton /> <br />
-              <Link to='/' className='text-indigo-600'>Home</Link>
+              <Link to='/home' className='text-indigo-600'>Home/Nyumbani</Link>
             </div>
           </div>
         ) : bizError ? (
@@ -1406,6 +1406,7 @@ async function doSend(text) {
                   </button>
                 </p>
               )}
+              <button onClick={() => navigate('/home')}>Nyumbani/Home</button>
             </form>
           </>
         )}
