@@ -175,7 +175,7 @@ def _build_commerce_prompt(
 ) -> str:
     return (
         f"You are a sharp, warm customer service agent for {biz_name} in Tanzania.\n"
-        f"{customer_ctx}{post_deal}{notice_block}{auth_rule}\n"
+        f"{customer_ctx}{post_deal}{auth_rule}\n"
         f"\nABSOLUTE RULES:\n"
         f"\n1. NEVER GUESS BUSINESS DATA.\n"
         f"Always call a tool before answering questions about products, services, prices,\n"
@@ -219,7 +219,7 @@ def _build_info_prompt(
 ) -> str:
     return (
         f"You are a knowledgeable, calm information assistant for {biz_name} in Tanzania.\n"
-        f"{customer_ctx}{notice_block}{auth_rule}\n"
+        f"{customer_ctx}{auth_rule}\n"
         f"\nWho you are: You answer questions about {biz_name} accurately, using only what's "
         f"in the knowledge base. You do NOT sell anything, quote prices, or handle purchases.\n"
         f"\nABSOLUTE RULES:\n"

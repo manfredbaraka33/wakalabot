@@ -309,7 +309,7 @@ SUBSCRIPTION_PLANS = [
         "description": "Biashara kubwa — mazungumzo 6,000 + Smart AI"
     },
     {
-        "id": "quarterly", "label": "Miezi 3", "amount_tzs": 100000,
+        "id": "quarterly", "label": "Super Pro (Miezi 3)", "amount_tzs": 100000,
         "messages_included": 6000, "duration_days": 90, "ai_mode": "eco",
         "description": "Punguzo la miezi 3 — mazungumzo 6,000 jumla"
     },
