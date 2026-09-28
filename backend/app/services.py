@@ -448,13 +448,6 @@ class AIEngine:
             notice_row.content[len("__CUSTOMER_NOTICE__:"):].strip()
             if notice_row else None
         )
-        # notice_block = (
-        #     f"\n9. ACTIVE NOTICE.\n"
-        #     f'The organization has posted this notice to all customers: "{active_notice}"\n'
-        #     f"Mention this notice naturally in your FIRST reply to the customer.\n"
-        #     f"If the notice affects their question (e.g. delivery paused, office closed), "
-        #     f"address it directly and prioritize it over other information.\n"
-        # ) if active_notice else ""
 
         # Only inject the notice instruction if it hasn't already been
         # mentioned in this conversation — checked by scanning recent
