@@ -32,7 +32,8 @@ from app.models import (
     Notification, SupportTicket, Tenant, Transaction, Wallet, PaymentRequest,
     Conversation, Subscription,
 )
-from app.schemas import AdminPaymentAction, COIN_PACKAGES
+from app.schemas import AdminPaymentAction
+from app.subscriptions import get_current_subscription
 
 from app.auth import hash_password
 from app.core import settings
@@ -71,6 +72,32 @@ def _period_label(duration_days: int) -> str:
     if duration_days <= 31:
         return "mwezi huu"
     return f"kipindi cha siku {duration_days}"
+
+async def _activate_plan(db: AsyncSession, tenant_id: uuid.UUID, plan: dict) -> Subscription:
+    """Start or renew a plan by updating the tenant's existing subscription
+    row in place. Never inserts a second row, so renewals cannot violate the
+    unique constraint on tenant_id."""
+    now = datetime.now(timezone.utc)
+    days = plan.get("duration_days", 30)
+
+    result = await db.execute(
+        select(Subscription).where(Subscription.tenant_id == tenant_id)
+    )
+    sub = result.scalars().first()
+
+    if sub is None:
+        sub = Subscription(tenant_id=tenant_id)
+        db.add(sub)
+
+    sub.plan_id = plan["id"]
+    sub.messages_included = plan["messages_included"]
+    sub.messages_used = 0
+    sub.status = "active"
+    sub.started_at = now
+    sub.expires_at = now + timedelta(days=days)
+    sub.duration_days = days
+    sub.auto_renew_prompted = False
+    return sub
 
 
 def _verify_superadmin_token(token: str) -> None:
@@ -435,7 +462,9 @@ async def list_tenants(
                 "phone": t.phone,
                 "slug": t.slug,
                 "is_verified": t.is_verified,
+                "bot_type": t.bot_type,
                 "ai_mode": t.ai_mode,
+                
             }
             for t in tenants
         ],
@@ -1087,7 +1116,7 @@ async def get_tenant_subscription(
             Subscription.status == "active",
         )
     )
-    sub = result.scalar_one_or_none()
+    sub = await get_current_subscription(db, tenant_id)
     if not sub:
         return {"has_subscription": False}
     return {
@@ -1096,6 +1125,7 @@ async def get_tenant_subscription(
         "messages_used": sub.messages_used,
         "messages_included": sub.messages_included,
         "expires_at": sub.expires_at.isoformat(),
+        "is_expired": sub.expires_at <= datetime.now(timezone.utc),
     }
 
 
@@ -1112,13 +1142,7 @@ async def get_tenant_details(
 
     wallet = await db.scalar(select(Wallet).where(Wallet.tenant_id == tenant_id))
 
-    sub_result = await db.execute(
-        select(Subscription).where(
-            Subscription.tenant_id == tenant_id,
-            Subscription.status == "active",
-        )
-    )
-    sub = sub_result.scalar_one_or_none()
+    sub = await get_current_subscription(db, tenant_id)
 
     total_spent = int(
         (await db.scalar(
@@ -1173,29 +1197,19 @@ async def get_tenant_details(
 
 
 
-
 @router.post("/tenants/{tenant_id}/set-plan", dependencies=[Depends(get_superadmin)])
 async def set_tenant_plan(
     tenant_id: uuid.UUID,
     payload: SetPlanRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    from app.models import Subscription
-    from datetime import datetime, timedelta, timezone
-
-    # Cancel existing subscription if any
-    existing = await db.execute(
-        select(Subscription).where(
-            Subscription.tenant_id == tenant_id,
-            Subscription.status == "active",
-        )
-    )
-    old_sub = existing.scalar_one_or_none()
-    if old_sub:
-        await db.delete(old_sub)
-        await db.commit()  
-
     if payload.plan_id == "none":
+        result = await db.execute(
+            select(Subscription).where(Subscription.tenant_id == tenant_id).order_by(Subscription.expires_at.desc())
+        )
+        sub = result.scalars().first()
+        if sub:
+            sub.status = "cancelled"
         await db.commit()
         return {"status": "subscription_removed"}
 
@@ -1203,23 +1217,16 @@ async def set_tenant_plan(
     if not plan:
         raise HTTPException(status_code=400, detail="Invalid plan_id")
 
-    now = datetime.now(timezone.utc)
-    db.add(Subscription(
-        tenant_id=tenant_id,
-        plan_id=payload.plan_id,
-        messages_included=plan["messages_included"],
-        messages_used=0,
-        status="active",
-        started_at=now,
-        expires_at=now + timedelta(days=plan["duration_days"]),
-        duration_days=plan.get("duration_days", 30),
-    ))
+    await _activate_plan(db, tenant_id, plan)
 
     period_label = _period_label(plan.get("duration_days", 30))
     db.add(Notification(
         tenant_id=tenant_id,
         type="new_message",
-        message=f"✅ Mpango wako umewekwa hadi {plan['label']} ({plan['messages_included']:,} mazungumzo kwa {period_label}) na admin.",
+        message=(
+            f"✅ Mpango wako umewekwa hadi {plan['label']} "
+            f"({plan['messages_included']:,} mazungumzo kwa {period_label}) na admin."
+        ),
         is_read=False,
     ))
 

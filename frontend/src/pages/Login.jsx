@@ -7,6 +7,9 @@ import { Loader2, BotMessageSquare, Eye, EyeOff, AtSign } from 'lucide-react'
 import useTenantStore from '../store/useTenantStore'
 import apiClient from '../api/axios'
 import WakalaLogo from '../components/Wakalalogo'
+import { explainError } from '../utils/errors'
+import useOnlineStatus from '../hooks/useOnlineStatus'
+import { WifiOff } from 'lucide-react'
 
 const schema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -21,6 +24,7 @@ export default function Login() {
   const [serverError, setServerError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const setAuthResult = useTenantStore((s) => s.setAuthResult)
+  const online = useOnlineStatus()
 
   const {
     register,
@@ -28,8 +32,12 @@ export default function Login() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema) })
 
-  async function onSubmit(data) {
+    async function onSubmit(data) {
     setServerError('')
+    if (!navigator.onLine) {
+      setServerError('Huna mtandao. Angalia intaneti yako kisha jaribu tena.')
+      return
+    }
     try {
       const res = await apiClient.post('/api/v1/auth/login', {
         username: data.username.trim().toLowerCase(),
@@ -37,8 +45,14 @@ export default function Login() {
       })
       setAuthResult(res.data)
       navigate('/dashboard')
-    } catch (err) {
-      setServerError(err.response?.data?.detail ?? 'Login failed. Please check your credentials.')
+        } catch (err) {
+      // 401 means the server answered and the credentials were wrong.
+      // Anything else (offline, timeout, 5xx) gets its own honest message.
+      if (err.response?.status === 401) {
+        setServerError(err.response?.data?.detail ?? 'Username au neno la siri si sahihi.')
+      } else {
+        setServerError(explainError(err))
+      }
     }
   }
 
@@ -57,6 +71,13 @@ export default function Login() {
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
           <h1 className="text-xl font-semibold text-white mb-1">Karibu tena</h1>
           <p className="text-sm text-gray-400 mb-6">Ingia kwenye dashibodi yako</p>
+
+          {!online && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2">
+              <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-300">Huna mtandao. Washa intaneti ili kuingia.</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>

@@ -54,7 +54,6 @@ export default function App() {
         <UpdateToast />
         <Routes>
           {/* Landing */}
-          {/* <Route path="/" element={<LandingPage />} /> */}
           <Route path="/" element={<RootEntry />} />
           <Route path="/home" element={<AppHome />} />
 

@@ -94,3 +94,5 @@ export const getSuperAdminFeedback = (filter) =>
     params: { rating: filter || undefined }
   });
 
+export const getPlans = () => saClient().get('/billing/plans')
+

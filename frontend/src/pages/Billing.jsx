@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Coins, Loader2, X, Check, Clock, CheckCircle, XCircle, Zap, AlertTriangle } from 'lucide-react'
 import apiClient from '../api/axios'
+import { formatExpiry, timeLeft } from '../utils/dates'
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
@@ -259,7 +260,7 @@ export default function Billing() {
               <div>
                 <p className="text-white font-semibold capitalize">{subscription.plan_id} Plan</p>
                 <p className="text-xs text-gray-400">
-                  Inaisha: {new Date(subscription.expires_at).toLocaleDateString('sw-TZ', { day: 'numeric', month: 'long' })}
+                  Inaisha: {formatExpiry(subscription.expires_at)} · {timeLeft(subscription.expires_at)}
                 </p>
               </div>
             </div>

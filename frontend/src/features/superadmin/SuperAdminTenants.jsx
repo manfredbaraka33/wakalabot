@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useState,useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Users, Search, Trash2, KeyRound, Coins, X, ChevronLeft, ChevronRight,
@@ -6,15 +6,10 @@ import {
 } from 'lucide-react'
 import {
   getTenants, deleteTenant, resetPassword, addCoins, toggleVerify,
-  getTenantSubscription, setTenantPlan, getTenantDetails,
+  getTenantSubscription, setTenantPlan, getTenantDetails,getPlans,
 } from '../../api/superadmin'
+import { formatExpiry, timeLeft, isExpired } from '../../utils/dates'
 
-const PLANS = [
-  { id: 'none', label: 'No Plan (Coin only)', color: 'text-gray-400' },
-  { id: 'starter', label: 'Starter — 500 msg/mo (Eco)', color: 'text-yellow-400' },
-  { id: 'business', label: 'Business — 2,000 msg/mo (Eco)', color: 'text-indigo-400' },
-  { id: 'pro', label: 'Pro — 6,000 msg/mo (Smart)', color: 'text-emerald-400' },
-]
 
 function Modal({ title, onClose, children, wide }) {
   return (
@@ -59,6 +54,13 @@ export default function SuperAdminTenants() {
   const [coinsAmt, setCoinsAmt] = useState(100)
   const [selectedPlanId, setSelectedPlanId] = useState('none')
 
+  function durationLabel(days) {
+  if (days <= 1) return 'siku 1'
+  if (days <= 7) return 'wiki 1'
+  if (days <= 31) return 'mwezi 1'
+  return `siku ${days}`
+}
+
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['sa-tenants', search, page],
     queryFn: () =>
@@ -66,12 +68,25 @@ export default function SuperAdminTenants() {
     keepPreviousData: true,
   })
 
+    const { data: plans = [], isLoading: plansLoading } = useQuery({
+    queryKey: ['sa-plans'],
+    queryFn: () => getPlans().then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+  })
+
   const { data: currentSub, isLoading: subLoading } = useQuery({
     queryKey: ['sa-tenant-sub', planTarget?.id],
     queryFn: () => getTenantSubscription(planTarget.id).then(r => r.data),
     enabled: !!planTarget,
-    onSuccess: (data) => setSelectedPlanId(data.has_subscription ? data.plan_id : 'none'),
   })
+
+  // Preselect the tenant's current plan once it loads. This uses an effect
+  // instead of onSuccess, which newer React Query versions no longer support.
+  useEffect(() => {
+    if (currentSub) {
+      setSelectedPlanId(currentSub.has_subscription ? currentSub.plan_id : 'none')
+    }
+  }, [currentSub])
 
   const { data: tenantDetail, isLoading: detailLoading } = useQuery({
     queryKey: ['sa-tenant-detail', detailTarget?.id],
@@ -182,10 +197,10 @@ export default function SuperAdminTenants() {
                       }`}>
                       {t.is_verified ? <BadgeCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => { setCoinsTarget(t); setCoinsAmt(100) }} title="Add Coins"
+                    {/* <button onClick={() => { setCoinsTarget(t); setCoinsAmt(100) }} title="Add Coins"
                       className="rounded-lg p-1.5 text-amber-400 hover:bg-amber-400/10 transition-colors cursor-pointer">
                       <Coins className="w-4 h-4" />
-                    </button>
+                    </button> */}
                     <button onClick={() => { setResetTarget(t); setNewPw('') }} title="Reset Password"
                       className="rounded-lg p-1.5 text-blue-400 hover:bg-blue-400/10 transition-colors cursor-pointer">
                       <KeyRound className="w-4 h-4" />
@@ -238,13 +253,13 @@ export default function SuperAdminTenants() {
                   <DetailRow label="AI Mode" value={d.ai_mode === 'smart' ? '🧠 Smart' : '⚡ Eco'} />
                 </div>
               </div>
-              <div>
+              {/* <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Wallet</p>
                 <div className="bg-gray-800 rounded-xl px-4 divide-y divide-gray-700">
                   <DetailRow label="Coin Balance" value={`${d.wallet.balance?.toLocaleString() ?? 0} coins`} />
                   <DetailRow label="Total Spent" value={`${d.stats.total_spent_tzs?.toLocaleString() ?? 0} TZS`} />
                 </div>
-              </div>
+              </div> */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Subscription</p>
                 <div className="bg-gray-800 rounded-xl px-4 divide-y divide-gray-700">
@@ -252,7 +267,10 @@ export default function SuperAdminTenants() {
                     <>
                       <DetailRow label="Plan" value={d.subscription.plan_id} />
                       <DetailRow label="Usage" value={`${d.subscription.messages_used} / ${d.subscription.messages_included} messages`} />
-                      <DetailRow label="Expires" value={d.subscription.expires_at ? new Date(d.subscription.expires_at).toLocaleDateString() : '—'} />
+                      <DetailRow label="Expires" value={d.subscription.expires_at
+                              ? `${formatExpiry(d.subscription.expires_at)} (${timeLeft(d.subscription.expires_at)})`
+                              : '—'
+                          } />
                     </>
                   ) : (
                     <DetailRow label="Status" value="No active subscription" />
@@ -288,26 +306,54 @@ export default function SuperAdminTenants() {
             <>
               {currentSub?.has_subscription && (
                 <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2 mb-4">
-                  <p className="text-xs text-indigo-300">
+                                    <p className="text-xs text-indigo-300">
                     Current: <span className="font-semibold capitalize">{currentSub.plan_id}</span> —{' '}
-                    {currentSub.messages_used}/{currentSub.messages_included} messages used. Expires {new Date(currentSub.expires_at).toLocaleDateString()}
+                    {currentSub.messages_used}/{currentSub.messages_included} messages used.{' '}
+                    {isExpired(currentSub.expires_at) ? (
+                      <span className="text-red-400 font-semibold">
+                        EXPIRED {formatExpiry(currentSub.expires_at)}
+                      </span>
+                    ) : (
+                      <>Expires {formatExpiry(currentSub.expires_at)} ({timeLeft(currentSub.expires_at)})</>
+                    )}
                   </p>
                 </div>
               )}
               <p className="text-gray-400 text-sm mb-4">
                 Select a plan for <span className="text-white font-medium">@{planTarget.username}</span>. Overwrites any existing subscription immediately.
               </p>
-              <div className="space-y-2 mb-5">
-                {PLANS.map(plan => (
+              
+
+              <div className="space-y-2 mb-5 max-h-72 overflow-y-auto pr-1">
+                {/* "Remove plan" is an action, not a plan, so it stays static */}
+                <label className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${
+                  selectedPlanId === 'none' ? 'border-red-500/60 bg-red-500/10' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                }`}>
+                  <input type="radio" name="plan" value="none" checked={selectedPlanId === 'none'}
+                    onChange={() => setSelectedPlanId('none')} className="accent-red-500" />
+                  <span className="text-sm font-medium text-gray-400">Hakuna mpango (ondoa subscription)</span>
+                </label>
+
+                {plansLoading ? (
+                  <p className="text-xs text-gray-500 text-center py-3">Inapakia mipango…</p>
+                ) : plans.map(plan => (
                   <label key={plan.id} className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${
                     selectedPlanId === plan.id ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
                   }`}>
                     <input type="radio" name="plan" value={plan.id} checked={selectedPlanId === plan.id}
                       onChange={() => setSelectedPlanId(plan.id)} className="accent-indigo-500" />
-                    <span className={`text-sm font-medium ${plan.color}`}>{plan.label}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium`}>{plan.label}</p>
+                      <p className="text-xs text-gray-500">
+                        {plan.messages_included.toLocaleString()} messages · {durationLabel(plan.duration_days)} · {plan.ai_mode === 'smart' ? 'Smart' : 'Eco'}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-400 shrink-0">{plan.amount_tzs.toLocaleString()} TZS</p>
                   </label>
                 ))}
               </div>
+
+
               {setPlanMut.isError && (
                 <p className="text-red-400 text-sm mb-3">{setPlanMut.error?.response?.data?.detail || 'Failed. Try again.'}</p>
               )}
