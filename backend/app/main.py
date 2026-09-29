@@ -61,8 +61,6 @@ _origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    # Allow ngrok/pinggy tunnels + any origin for widget (echoes back actual origin, not *)
-    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,15 +75,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-# ── Widget static file ────────────────────────────────────────────────────────
-@app.get("/widget.js", include_in_schema=False)
-async def serve_widget():
-    widget_path = os.path.join(os.path.dirname(__file__), "..", "static", "widget.js")
-    return FileResponse(
-        widget_path,
-        media_type="application/javascript",
-        headers={"Cache-Control": "public, max-age=3600"},
-    )
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")

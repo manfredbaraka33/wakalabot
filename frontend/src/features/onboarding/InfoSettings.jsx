@@ -472,37 +472,7 @@ export default function InfoSettings() {
         </div>
       )}
 
-      {/* Widget */}
-      {slug && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
-              <Code className="w-4 h-4 text-indigo-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-white">Widget ya Website</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Bandika kwenye website yoyote.</p>
-            </div>
-          </div>
-          <div className="bg-gray-950 border border-gray-700 rounded-lg p-4 relative">
-            <pre className="text-xs text-indigo-300 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
-              {`<script\n  src="${baseUrl}/widget.js"\n  data-slug="${slug}"\n></script>`}
-            </pre>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(`<script\n  src="${baseUrl}/widget.js"\n  data-slug="${slug}"\n></script>`)
-                setCopiedWidget(true)
-                setTimeout(() => setCopiedWidget(false), 2500)
-              }}
-              className="absolute top-3 right-3 flex items-center gap-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:border-indigo-500 px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:text-white transition-colors"
-            >
-              {copiedWidget ? <><Check className="w-3 h-3 text-emerald-400" /> Imenakiliwa!</> : <><Copy className="w-3 h-3" /> Nakili</>}
-            </button>
-          </div>
-        </div>
-      )}
-
+      
       {chatLink && <TestBotPanel chatLink={chatLink} />}
     </div>
   )
