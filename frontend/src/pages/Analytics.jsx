@@ -25,21 +25,16 @@ function formatHourLabel(hour) {
   return `${String(hour).padStart(2, '0')}:00`
 }
 
-function getPeakHourStyle(count, maxCount) {
+function getPeakHourTone(count, maxCount) {
   if (!maxCount || count === 0) {
-    return {
-      className: 'border-gray-800 text-gray-600',
-      style: { backgroundColor: 'rgba(31,31,31,0.6)' },
-    }
+    return { bg: 'bg-gray-900', border: 'border-gray-800', dim: true }
   }
   const intensity = count / maxCount
-  const alpha = 0.12 + intensity * 0.88
-  const textClass = intensity >= 0.5 ? 'text-gray-950' : intensity >= 0.2 ? 'text-emerald-200' : 'text-gray-400'
-  return {
-    className: `border-[#6366f1]/30 ${textClass}`,
-    style: { backgroundColor: `rgba(37,211,102,${alpha.toFixed(2)})` },
-  }
+  if (intensity >= 0.66) return { bg: 'bg-emerald-500', border: 'border-emerald-400', dim: false }
+  if (intensity >= 0.33) return { bg: 'bg-emerald-500/40', border: 'border-emerald-500/40', dim: false }
+  return { bg: 'bg-emerald-500/15', border: 'border-emerald-500/20', dim: false }
 }
+
 
 function StatCard({ icon: Icon, label, value, hint, tone }) {
   return (
@@ -273,22 +268,51 @@ export default function Analytics() {
               )}
             </Panel>
 
-            <Panel
+                        <Panel
               title="Masaa Yenye Shughuli Zaidi"
-              subtitle="Kadri rangi inavyong'aa, ndivyo saa hiyo ina shughuli zaidi kwa bot yako."
+              subtitle="Kila saa inaonyesha idadi ya messages zilizopokelewa."
             >
+              {/* Legend — explains the color scale once, at the top */}
+              <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-gray-900 border border-gray-800 inline-block" />
+                  Hakuna
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-emerald-500/15 border border-emerald-500/20 inline-block" />
+                  Chache
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-emerald-500/40 border border-emerald-500/40 inline-block" />
+                  Wastani
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-emerald-500 border border-emerald-400 inline-block" />
+                  Nyingi Zaidi
+                </span>
+              </div>
+
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                 {peakHours.map((entry) => {
-                  const tone = getPeakHourStyle(entry.count, maxPeakCount)
+                  const tone = getPeakHourTone(entry.count, maxPeakCount)
                   return (
-                  <div
-                    key={entry.hour}
-                    className={`rounded-xl border px-3 py-3 text-center ${tone.className}`}
-                    style={tone.style}
-                  >
-                    <p className="text-xs font-medium">{formatHourLabel(entry.hour)}</p>
-                    <p className="mt-1 text-sm font-semibold">{formatNumber(entry.count)}</p>
-                  </div>
+                    <div
+                      key={entry.hour}
+                      className={`rounded-xl border overflow-hidden ${tone.border}`}
+                    >
+                      {/* Top half: hour label, always on a neutral dark background — never competes with the color scale */}
+                      <div className="bg-gray-900 px-2 py-1.5 text-center">
+                        <p className={`text-xs font-medium ${tone.dim ? 'text-gray-600' : 'text-gray-300'}`}>
+                          {formatHourLabel(entry.hour)}
+                        </p>
+                      </div>
+                      {/* Bottom half: the color-coded intensity block, count in solid white/dark for guaranteed contrast */}
+                      <div className={`px-2 py-2 text-center ${tone.bg}`}>
+                        <p className={`text-sm font-bold ${tone.dim ? 'text-gray-700' : 'text-white'}`}>
+                          {formatNumber(entry.count)}
+                        </p>
+                      </div>
+                    </div>
                   )
                 })}
               </div>

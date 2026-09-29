@@ -85,9 +85,14 @@ async def get_analytics_stats(
     assistant_ratio = round((assistant_messages / total_messages) * 100, 1) if total_messages else 0.0
     human_ratio = round(100.0 - assistant_ratio, 1) if total_messages else 0.0
 
+    tz_day_expr = cast(
+        func.timezone("Africa/Dar_es_Salaam", Message.timestamp),
+        Date,
+    )
+
     trend_stmt = (
         select(
-            cast(Message.timestamp, Date).label("day"),
+            tz_day_expr.label("day"),
             func.count(Message.id).label("count"),
         )
         .select_from(Message)
@@ -97,23 +102,33 @@ async def get_analytics_stats(
             Message.timestamp >= trend_start_dt,
             Message.role == "user",
         )
-        .group_by(cast(Message.timestamp, Date))
-        .order_by(cast(Message.timestamp, Date))
+        .group_by(tz_day_expr)
+        .order_by(tz_day_expr)
     )
     customer_inquiries_trend = _empty_trend_map(now)
     for day, count in (await db.execute(trend_stmt)).all():
         customer_inquiries_trend[day.isoformat()] = int(count)
 
+        # Explicit timezone conversion — timestamptz already carries UTC info,
+    # but extract("hour", ...) without conversion uses whatever timezone
+    # the database session defaults to, which differs between environments.
+    # Converting explicitly to Africa/Dar_es_Salaam (fixed UTC+3, no DST)
+    # makes the result identical everywhere regardless of server config.
+    tz_hour_expr = cast(
+        func.extract("hour", func.timezone("Africa/Dar_es_Salaam", Message.timestamp)),
+        Integer,
+    )
+
     peak_hours_stmt = (
         select(
-            cast(func.extract("hour", Message.timestamp), Integer).label("hour"),
+            tz_hour_expr.label("hour"),
             func.count(Message.id).label("count"),
         )
         .select_from(Message)
         .join(Conversation, Message.conversation_id == Conversation.id)
         .where(Conversation.tenant_id == tenant.id)
-        .group_by(cast(func.extract("hour", Message.timestamp), Integer))
-        .order_by(cast(func.extract("hour", Message.timestamp), Integer))
+        .group_by(tz_hour_expr)
+        .order_by(tz_hour_expr)
     )
     peak_hours = _empty_hour_buckets()
     for hour, count in (await db.execute(peak_hours_stmt)).all():

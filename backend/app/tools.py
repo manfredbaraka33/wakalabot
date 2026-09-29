@@ -365,7 +365,11 @@ class ToolExecutor:
                 else f"{int(p.price):,} TZS"
             )
             stock_note = "" if p.stock_quantity > 0 else " (Imeisha)"
-            lines.append(f"• {p.name} — {price_str}{stock_note}")
+            # Real Markdown list syntax ("- ") so ReactMarkdown renders
+            # each item on its own line with proper spacing, instead of
+            # a plain "•" bullet which Markdown treats as inline text
+            # and collapses onto one line.
+            lines.append(f"- {p.name} — {price_str}{stock_note}")
 
         formatted_list = "\n".join(lines)
 
@@ -416,7 +420,7 @@ class ToolExecutor:
                 if s.price_min and s.price_max
                 else f"{int(s.price):,} TZS"
             )
-            lines.append(f"• {s.name} — {price_str}")
+            lines.append(f"- {s.name} — {price_str}")
 
         formatted_list = "\n".join(lines)
 
