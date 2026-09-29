@@ -1237,22 +1237,6 @@ export default function CustomerChat() {
                   )}
                 </div>
 
-                {/* Guest banner
-                {isGuest && (
-                  <div className="shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/40 border-b border-gray-700/30">
-                    <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-500 inline-block" />
-                      Unachati kama mgeni
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => { setIsGuest(false); setGuestPhone(null); setShowAuthModal(true); setAuthMode('register') }}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                    >
-                      Jisajili →
-                    </button>
-                  </div>
-                )} */}
 
                 {/* Notice banner */}
                 {notice && activeBiz && !noticeDismissed && (
@@ -1319,7 +1303,7 @@ export default function CustomerChat() {
                             </div>
                           )}
                           {msg.content && (
-                            <div className={`prose prose-invert prose-sm max-w-none px-4 py-2.5 rounded-2xl ${
+                            <div className={`prose prose-invert prose-base max-w-none px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed ${
                               msg.role === 'user'
                                 ? 'bg-indigo-700 text-gray-50 rounded-br-sm'
                                 : 'bg-gray-800 text-white rounded-bl-sm prose-p:text-white prose-strong:text-white'
