@@ -143,9 +143,18 @@ _SHOP_SETTINGS_MARKER = "__SHOP_SETTINGS__"
 
 
 def _build_shop_settings_content(data: ShopSettingsRequest) -> str:
+    opening_time = data.opening_time
+    closing_time = data.closing_time
+    
+    hours = (
+        "Saa 24 (hatufungi)"
+        if opening_time == "24h"
+        else f"{opening_time} - {closing_time}"
+    )
+
     return (
         f"{_SHOP_SETTINGS_MARKER}\n"
-        f"Business Hours: {data.opening_time} - {data.closing_time}\n"
+        f"Business Hours: {hours}\n"
         f"Location: {data.location}\n"
         f"Contact Phone: {data.contact_phone}\n"
         f"Website URL: {data.website_url or ''}\n"
@@ -172,8 +181,8 @@ async def get_shop_settings(
     # Default values if no entry exists
     if not row:
         return ShopSettingsResponse(
-            opening_time="08:00",
-            closing_time="18:00",
+            opening_time="",
+            closing_time="",
             location="",
             contact_phone="",
         )

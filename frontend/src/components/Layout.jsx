@@ -79,6 +79,7 @@ import { Bell } from 'lucide-react'
 import apiClient from '../api/axios'
 import { useState as useStateN } from 'react'
 import WakalaLogo from './Wakalalogo'
+import MiniFooter from './MiniFooter'
 
 function NotificationBell() {
   const [open, setOpen] = useStateN(false)
@@ -320,7 +321,7 @@ export default function Layout() {
           <div className="p-6">
             <Outlet />
           </div>
-          <Footer />
+         <MiniFooter />
         </main>
       </div>
     </div>

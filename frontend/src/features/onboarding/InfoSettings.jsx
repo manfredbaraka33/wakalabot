@@ -11,8 +11,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import apiClient from '../../api/axios'
 
 const schema = z.object({
-  opening_time: z.string().min(1),
-  closing_time: z.string().min(1),
+  opening_time: z.string().optional(), 
+  closing_time: z.string().optional(),
   location: z.string().min(2),
   contact_phone: z.string().min(6),
   website_url: z.string().optional(),
@@ -94,6 +94,7 @@ export default function InfoSettings() {
   const [logoPreview, setLogoPreview] = useState(null)
   const [logoUploading, setLogoUploading] = useState(false)
   const logoInputRef = useRef(null)
+  const [isOpen24h, setIsOpen24h] = useState(false)
 
   const { data: noticeData } = useQuery({
     queryKey: ['shop-notice'],
@@ -133,8 +134,8 @@ export default function InfoSettings() {
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     values: {
-      opening_time: existing?.opening_time ?? '08:00',
-      closing_time: existing?.closing_time ?? '17:00',
+      opening_time: existing?.opening_time === '24h' ? '' : (existing?.opening_time ?? ''),
+      closing_time: existing?.closing_time === '24h' ? '' : (existing?.closing_time ?? ''),
       location: existing?.location ?? '',
       contact_phone: existing?.contact_phone ?? '',
       website_url: existing?.website_url ?? '',
@@ -142,18 +143,27 @@ export default function InfoSettings() {
     },
   })
 
+  useEffect(() => {
+  if (existing?.opening_time === '24h') setIsOpen24h(true)
+}, [existing])
+
   async function onSubmit(data) {
-    setSaveStatus('saving')
-    try {
-      await apiClient.post('/api/v1/knowledge/shop-settings', data)
-      queryClient.invalidateQueries({ queryKey: ['shop-settings'] })
-      setSaveStatus('saved')
-      setTimeout(() => setSaveStatus('idle'), 3000)
-    } catch {
-      setSaveStatus('error')
-      setTimeout(() => setSaveStatus('idle'), 4000)
+  setSaveStatus('saving')
+  try {
+    const payload = {
+      ...data,
+      opening_time: isOpen24h ? '24h' : data.opening_time,
+      closing_time: isOpen24h ? '24h' : data.closing_time,
     }
+    await apiClient.post('/api/v1/knowledge/shop-settings', payload)
+    queryClient.invalidateQueries({ queryKey: ['shop-settings'] })
+    setSaveStatus('saved')
+    setTimeout(() => setSaveStatus('idle'), 3000)
+  } catch {
+    setSaveStatus('error')
+    setTimeout(() => setSaveStatus('idle'), 4000)
   }
+}
 
   const slug = tenantData?.user?.slug ?? null
   const baseUrl = window.location.origin
@@ -292,17 +302,37 @@ export default function InfoSettings() {
         </SectionCard>
 
         <SectionCard icon={Clock} title="Masaa ya Kufanya Kazi">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Saa ya Kufungua</label>
-              <input {...register('opening_time')} type="time" className={`${inputCls} scheme-dark`} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Saa ya Kufunga</label>
-              <input {...register('closing_time')} type="time" className={`${inputCls} scheme-dark`} />
-            </div>
+        <label className="flex items-center gap-2.5 mb-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isOpen24h}
+            onChange={e => setIsOpen24h(e.target.checked)}
+            className="w-4 h-4 rounded accent-indigo-500"
+          />
+          <span className="text-sm text-gray-300">Tunafanya kazi saa 24 (hatufungi)</span>
+        </label>
+
+        <div className={`grid grid-cols-2 gap-4 transition-opacity ${isOpen24h ? 'opacity-40 pointer-events-none' : ''}`}>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Saa ya Kufungua</label>
+            <input
+              {...register('opening_time')}
+              type="time"
+              disabled={isOpen24h}
+              className={`${inputCls} scheme-dark`}
+            />
           </div>
-        </SectionCard>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Saa ya Kufunga</label>
+            <input
+              {...register('closing_time')}
+              type="time"
+              disabled={isOpen24h}
+              className={`${inputCls} scheme-dark`}
+            />
+          </div>
+        </div>
+      </SectionCard>
 
         <SectionCard icon={MapPin} title="Mahali" description="Bot inashiriki hii pale mtu anapouliza 'mko wapi?'">
           <input {...register('location')} placeholder="e.g. Karagwe, Kagera" className={inputCls} />
