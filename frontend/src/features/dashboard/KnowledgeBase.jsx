@@ -171,7 +171,7 @@ export default function KnowledgeBaseManager() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Maudhui ya Biashara</h1>
+          <h1 className="text-2xl font-bold text-white">Maudhui ya Biashara/Taasisi</h1>
           <p className="text-sm text-gray-400 mt-1">
             Kila kitu unachoweka hapa kinatumiwa na bot yako ya AI kujibu maswali ya wateja.
           </p>
