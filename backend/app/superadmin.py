@@ -1224,8 +1224,8 @@ async def set_tenant_plan(
         tenant_id=tenant_id,
         type="new_message",
         message=(
-            f"✅ Mpango wako umewekwa hadi {plan['label']} "
-            f"({plan['messages_included']:,} mazungumzo kwa {period_label}) na admin."
+            f"✅ Mpango wako umewekwa hadi na admin."
+            f"(Mazungumzo {plan['messages_included']:,} kwa {period_label})."
         ),
         is_read=False,
     ))
