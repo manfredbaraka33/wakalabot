@@ -56,7 +56,7 @@ export default function AppHome() {
               <MessageSquareText className="w-5 h-5 text-emerald-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">Tafuta Biashara</p>
+              <p className="text-sm font-semibold text-white">Tafuta Biashara/Taasisi</p>
               <p className="text-xs text-gray-500">Angalia orodha ya biashara zote</p>
             </div>
             <ArrowRight className="w-4 h-4 text-gray-600 shrink-0" />
@@ -71,10 +71,10 @@ export default function AppHome() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">
-                {isMerchant ? 'Dashibodi Yangu' : 'Nina Biashara — Ingia'}
+                {isMerchant ? 'Dashibodi Yangu' : 'Nina Biashara/Taasisi — Ingia'}
               </p>
               <p className="text-xs text-gray-500">
-                {isMerchant ? 'Simamia bot yako' : 'Ingia kusimamia biashara yako'}
+                {isMerchant ? 'Simamia bot yako' : 'Ingia kusimamia bot yako'}
               </p>
             </div>
             <ArrowRight className="w-4 h-4 text-gray-600 shrink-0" />
