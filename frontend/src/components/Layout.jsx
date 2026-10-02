@@ -27,15 +27,15 @@ import { useTheme } from '../hooks/useTheme'
 
 const COMMERCE_NAV = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/knowledge', label: 'Knowledge Base', icon: BookOpen },
-  { to: '/dashboard/products', label: 'Products & Services', icon: Package },
-  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
-  { to: '/dashboard/conversations', label: 'Conversations', icon: MessageSquare },
-  { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/dashboard/knowledge', label: 'Maudhui', icon: BookOpen },
+  { to: '/dashboard/products', label: 'Bidhaa na Huduma', icon: Package },
+  { to: '/dashboard/settings', label: 'Mipangilio', icon: Settings },
+  { to: '/dashboard/conversations', label: 'Mazungumzo', icon: MessageSquare },
+  { to: '/dashboard/analytics', label: 'Takwimu', icon: BarChart3 },
   // { to: '/dashboard/billing', label: 'Billing', icon: Coins },
   { to: '/dashboard/leads', label: 'Leads', icon: FlameIcon },
   // { to: '/dashboard/directory', label: 'Wakalabot Directory', icon: Globe },
-  { to: '/dashboard/support', label: 'Support', icon: Ticket },
+  { to: '/dashboard/support', label: 'Msaada', icon: Ticket },
 ]
 
 const INFO_NAV = [
