@@ -236,7 +236,7 @@ export default function KnowledgeBaseManager() {
               </p>
 
               {/* Actions */}
-              <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1.5 shrink-0 ">
                 <button
                   onClick={() => setEditTarget(entry)}
                   className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-blue-500/15 hover:text-blue-400 flex items-center justify-center text-gray-400 transition-colors"
