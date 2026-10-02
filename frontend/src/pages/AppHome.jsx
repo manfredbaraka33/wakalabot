@@ -57,7 +57,7 @@ export default function AppHome() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">Tafuta Biashara/Taasisi</p>
-              <p className="text-xs text-gray-500">Angalia orodha ya biashara zote</p>
+              <p className="text-xs text-gray-500">Angalia orodha ya biashara/taasisi zote</p>
             </div>
             <ArrowRight className="w-4 h-4 text-gray-600 shrink-0" />
           </button>
