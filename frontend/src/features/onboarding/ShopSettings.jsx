@@ -424,15 +424,15 @@ useEffect(() => {
         <div>
           <textarea
             value={notice}
-            onChange={e => setNotice(e.target.value.slice(0, 280))}
+            onChange={e => setNotice(e.target.value.slice(0, 500))}
             rows={3}
             placeholder='e.g. "Duka limefungwa Jumamosi na Jumapili. Tunarudi Jumatatu."'
             className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none transition"
-            maxLength={280}
+            maxLength={500}
           />
           <div className="flex items-center justify-between mt-1">
             <p className={`text-xs ${notice.length > 250 ? 'text-amber-400' : 'text-gray-600'}`}>
-              herufi {notice.length}/280
+              herufi {notice.length}/500
             </p>
             {noticeData?.notice && !notice && (
               <p className="text-xs text-gray-500">Wazi = notisi itaondolewa kwenye chati</p>

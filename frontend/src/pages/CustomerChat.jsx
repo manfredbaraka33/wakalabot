@@ -693,6 +693,12 @@ export default function CustomerChat() {
   const [isGuest, setIsGuest] = useState(false)
   const [guestPhone, setGuestPhone] = useState(null)
   const [showGuestInfo, setShowGuestInfo] = useState(false)
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false)
+
+  function truncateText(text, maxLength = 80) {
+  if (!text || text.length <= maxLength) return { truncated: text, needsMore: false }
+  return { truncated: text.slice(0, maxLength).trim() + '...', needsMore: true }
+}
 
   function initGuestSession() {
     const key = `wk_guest_${slug}`
@@ -1238,6 +1244,7 @@ export default function CustomerChat() {
                 </div>
 
 
+
                 {/* Notice banner */}
                 {notice && activeBiz && !noticeDismissed && (
                   <div
@@ -1251,7 +1258,27 @@ export default function CustomerChat() {
                     <span className="text-amber-100 dark:text-amber-400 text-base shrink-0 mt-0.5">
                       {noticeRead ? '📢' : '⚠️'}
                     </span>
-                    <p className="text-amber-100 text-center dark:text-amber-300 text-xs leading-relaxed flex-1 font-medium">{notice}</p>
+                    {/* <p className="text-amber-100 text-center dark:text-amber-300 text-xs leading-relaxed flex-1 font-medium">{notice}</p> */}
+                    
+
+                    {notice && (() => {
+                    const { truncated, needsMore } = truncateText(notice, 80);
+                    return (
+                      <p className="text-amber-100 text-center dark:text-amber-300 text-xs leading-relaxed flex-1 font-medium">
+                        {truncated}
+                        {needsMore && (
+                          <button
+                            onClick={() => setShowDescriptionModal(true)}
+                            className="text-indigo-400 hover:text-indigo-300 font-bold ml-2"
+                          >
+                            Soma zaidi
+                          </button>
+                        )}
+                      </p>
+                    );
+                  })()}
+
+                    
                     {!noticeRead ? (
                       <button
                         type="button"
@@ -1492,6 +1519,38 @@ export default function CustomerChat() {
             </div>
           )}
         </>
+      )}
+
+      {showDescriptionModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3.5">
+              <div className="flex items-center gap-2.5">
+                {activeBiz.logo_url ? (
+                  <img src={activeBiz.logo_url} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                    <span className="text-indigo-400 text-xs font-bold">
+                      {activeBiz.biz_name?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <p className="text-sm font-semibold text-white">{activeBiz.biz_name}</p>
+              </div>
+              <button
+                onClick={() => setShowDescriptionModal(false)}
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+                {notice}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
