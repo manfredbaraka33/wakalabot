@@ -55,6 +55,12 @@ export default function Footer() {
                   <p className='mt-3'>Chati nasi hapa: <a href="https://wakalabot.co.tz/chat/wakalabot" className='rounded-2xl p-2 text-amber-50 bg-indigo-600 border border-amber-600'>Wakalabot</a></p>
               
               </li>
+              <li>
+            <Link to="/tools" className="text-sm text-gray-400 hover:text-indigo-400 transition-colors">
+              Zana za Bure
+            </Link>
+          </li>
+
             </ul>
           </div>
 
@@ -88,6 +94,7 @@ export default function Footer() {
             </div>
           </div>
 
+          
         </div>
       </div>
     </footer>

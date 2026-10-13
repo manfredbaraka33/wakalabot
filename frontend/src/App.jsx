@@ -35,6 +35,13 @@ import InstallPrompt from './components/InstallPrompt'
 import RootEntry from './components/RootEntry'
 import UpdateToast from './components/UpdateToast'
 import AppHome from './pages/AppHome'
+import BroadcastTool from './pages/BroadcastTool'
+import PriceListTool from './pages/PriceListTool'
+import FeeCalculator from './pages/FeeCalculator'
+import MarginCalculator from './pages/MarginCalculator'
+import ReceiptTool from './pages/ReceiptTool'
+import ToolsHub from './pages/ToolsHub'
+
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -67,6 +74,12 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/tools/broadcast" element={<BroadcastTool />} />
+          <Route path="/tools/price-list" element={<PriceListTool />} />
+          <Route path="/tools/fee-calculator" element={<FeeCalculator />} />
+          <Route path="/tools/margin-calculator" element={<MarginCalculator />} />
+          <Route path="/tools/receipt" element={<ReceiptTool />} />
+          <Route path="/tools" element={<ToolsHub />} />
 
           {/* Tenant dashboard */}
           <Route

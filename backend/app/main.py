@@ -20,6 +20,7 @@ from app.superadmin import router as superadmin_router
 from app.notifications import router as notifications_router
 from app.customer_auth import router as customer_auth_router
 from app.instagram import router as instagram_router
+from app.tools_public import router as tools_public_router
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -88,6 +89,8 @@ app.include_router(superadmin_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(customer_auth_router, prefix="/api/v1")
 app.include_router(instagram_router, prefix="/api/v1")
+app.include_router(tools_public_router, prefix="/api/v1")
+
 
 @app.get("/", response_model=dict)
 async def root():
@@ -96,3 +99,4 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
