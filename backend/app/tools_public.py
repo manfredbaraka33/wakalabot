@@ -452,7 +452,7 @@ async def generate_receipt_image(request: Request, payload: ReceiptRequest):
     # Footer
     if is_invoice:
         center("TAFADHALI LIPA KWA WAKATI", _load_mono(22, bold=True), ink, 32)
-        center("Asante kwa biashara yako.", _load_mono(19), muted, 36)
+        center("Asante!", _load_mono(19), muted, 36)
     else:
         center("ASANTE KWA KUNUNUA!", _load_mono(24, bold=True), ink, 32)
         center("Karibu tena.", _load_mono(19), muted, 36)
