@@ -41,6 +41,7 @@ import FeeCalculator from './pages/FeeCalculator'
 import MarginCalculator from './pages/MarginCalculator'
 import ReceiptTool from './pages/ReceiptTool'
 import ToolsHub from './pages/ToolsHub'
+import AdGenerator from './pages/AdGenerator'
 
 
 const queryClient = new QueryClient({
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="/tools/price-list" element={<PriceListTool />} />
           <Route path="/tools/fee-calculator" element={<FeeCalculator />} />
           <Route path="/tools/margin-calculator" element={<MarginCalculator />} />
+          <Route path="/tools/product-ad" element={<AdGenerator />} />
           <Route path="/tools/receipt" element={<ReceiptTool />} />
           <Route path="/tools" element={<ToolsHub />} />
 

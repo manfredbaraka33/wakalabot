@@ -17,6 +17,17 @@ _client = genai.Client(api_key=settings.GEMINI_API_KEY)
 from app.limiter import limiter
 from fastapi import Request
 
+import asyncio
+import json
+import os
+from functools import lru_cache
+from typing import Optional
+
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import Response, StreamingResponse
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from pydantic import BaseModel, Field, ValidationError
+
 
 
 
@@ -80,78 +91,472 @@ class PriceListItem(BaseModel):
     price: str = Field(..., min_length=1, max_length=30)
 
 
-class PriceListRequest(BaseModel):
-    business_name: str = Field(..., min_length=2, max_length=60)
-    items: list[PriceListItem] = Field(..., min_length=1, max_length=10)
-    theme: str = Field(default="indigo")  # indigo | emerald | amber
 
 
-_THEMES = {
-    "indigo": {"bg": (15, 15, 20), "accent": (99, 102, 241), "text": (240, 240, 245)},
-    "emerald": {"bg": (10, 20, 16), "accent": (16, 185, 129), "text": (235, 245, 240)},
-    "amber": {"bg": (20, 16, 10), "accent": (245, 158, 11), "text": (245, 240, 235)},
+# ═════════════════════════════════════════════════════════════════════════════
+# Shared design system (price list + ad generator)
+# ═════════════════════════════════════════════════════════════════════════════
+
+_FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "fonts")
+
+
+@lru_cache(maxsize=96)
+def _F(size: int, bold: bool = True):
+    names = (
+        ["Poppins-Bold.ttf", "DejaVuSans-Bold.ttf"] if bold
+        else ["Poppins-Medium.ttf", "DejaVuSans.ttf"]
+    )
+    for name in names:
+        for path in (os.path.join(_FONT_DIR, name), name):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+    try:
+        return ImageFont.load_default(size)
+    except TypeError:
+        return ImageFont.load_default()
+
+
+_STYLES = {
+    "giza": {
+        "bg1": (11, 11, 18), "bg2": (36, 27, 10), "accent": (245, 183, 49),
+        "on_accent": (28, 20, 4), "text": (255, 255, 255), "muted": (178, 172, 152),
+        "card": (255, 255, 255, 22), "pill": (255, 255, 255), "on_pill": (20, 20, 30),
+        "overlay": (8, 8, 14), "overlay_a": 0.62, "ring": (245, 183, 49), "dark": True,
+    },
+    "zumaridi": {
+        "bg1": (5, 28, 22), "bg2": (9, 56, 43), "accent": (52, 211, 153),
+        "on_accent": (3, 32, 24), "text": (255, 255, 255), "muted": (150, 200, 184),
+        "card": (255, 255, 255, 22), "pill": (255, 255, 255), "on_pill": (6, 40, 30),
+        "overlay": (4, 30, 22), "overlay_a": 0.60, "ring": (52, 211, 153), "dark": True,
+    },
+    "machweo": {
+        "bg1": (46, 14, 24), "bg2": (118, 38, 20), "accent": (255, 138, 76),
+        "on_accent": (52, 14, 4), "text": (255, 255, 255), "muted": (244, 196, 176),
+        "card": (255, 255, 255, 24), "pill": (255, 255, 255), "on_pill": (60, 18, 10),
+        "overlay": (52, 16, 10), "overlay_a": 0.58, "ring": (255, 138, 76), "dark": True,
+    },
+    "safi": {
+        "bg1": (250, 250, 253), "bg2": (226, 229, 247), "accent": (79, 70, 229),
+        "on_accent": (255, 255, 255), "text": (24, 24, 40), "muted": (100, 104, 130),
+        "card": (255, 255, 255, 235), "pill": (24, 24, 40), "on_pill": (255, 255, 255),
+        "overlay": (255, 255, 255), "overlay_a": 0.74, "ring": (255, 255, 255), "dark": False,
+    },
 }
 
 
-def _load_font(size: int, bold: bool = False):
-    # DejaVuSans ships with Pillow by default and supports Latin + basic
-    # Swahili characters cleanly — no external font file needed.
+def _t(d, xy, text, font, fill, anchor="la"):
     try:
-        name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-        return ImageFont.truetype(name, size)
+        d.text(xy, text, font=font, fill=fill, anchor=anchor)
     except Exception:
-        return ImageFont.load_default()
+        d.text(xy, text, font=font, fill=fill)
+
+
+def _ctext(d, cx, y, text, font, fill):
+    _t(d, (cx, y), text, font, fill, "ma")
+
+
+def _fit(d, text, bold, max_w, max_h, max_size, min_size, max_lines):
+    """Largest font size at which the wrapped text fits both width and height."""
+    for size in range(max_size, min_size - 1, -2):
+        f = _F(size, bold)
+        lines = _wrap(d, text, f, max_w, 99)
+        lh = int(size * 1.18)
+        if len(lines) <= max_lines and len(lines) * lh <= max_h:
+            return lines, f, lh
+    f = _F(min_size, bold)
+    return _wrap(d, text, f, max_w, max_lines), f, int(min_size * 1.18)
+
+
+def _fmt_price(raw: str) -> str:
+    s = raw.strip()
+    digits = s.replace(",", "").replace(".", "").replace(" ", "")
+    return f"{int(digits):,} TZS" if digits.isdigit() else s
+
+
+def _gradient(w, h, top, bottom):
+    strip = Image.new("RGB", (1, h))
+    px = strip.load()
+    for y in range(h):
+        t = y / max(h - 1, 1)
+        px[0, y] = tuple(int(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
+    return strip.resize((w, h), Image.Resampling.BILINEAR)
+
+
+def _cover(img, w, h):
+    s = max(w / img.width, h / img.height)
+    nw, nh = max(1, round(img.width * s)), max(1, round(img.height * s))
+    img = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    l, t = (nw - w) // 2, (nh - h) // 2
+    return img.crop((l, t, l + w, t + h))
+
+
+def _contain(img, w, h):
+    s = min(w / img.width, h / img.height)
+    return img.resize(
+        (max(1, round(img.width * s)), max(1, round(img.height * s))),
+        Image.Resampling.LANCZOS,
+    )
+
+
+def _flatten(img, bg=(255, 255, 255)):
+    rgba = img.convert("RGBA")
+    base = Image.new("RGB", rgba.size, bg)
+    base.paste(rgba, mask=rgba.split()[3])
+    return base
+
+
+def _rr_mask(size, radius):
+    m = Image.new("L", size, 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, size[0] - 1, size[1] - 1], radius=radius, fill=255)
+    return m
+
+
+def _paste_rr(base, box, radius, rgb, alpha=255):
+    x0, y0, x1, y1 = [int(v) for v in box]
+    w, h = x1 - x0, y1 - y0
+    if w <= 0 or h <= 0:
+        return
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], radius=radius, fill=alpha)
+    base.paste(Image.new("RGB", (w, h), rgb), (x0, y0), mask)
+
+
+def _paste_circle(base, cx, cy, r, rgb, alpha=255):
+    r = int(r)
+    mask = Image.new("L", (r * 2, r * 2), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, r * 2 - 1, r * 2 - 1], fill=alpha)
+    base.paste(Image.new("RGB", (r * 2, r * 2), rgb), (int(cx - r), int(cy - r)), mask)
+
+
+def _shadow(base, box, radius, offset=(6, 16), blur=20, alpha=140):
+    x0, y0, x1, y1 = [int(v) for v in box]
+    w, h, pad = x1 - x0, y1 - y0, blur * 3
+    mask = Image.new("L", (w + 2 * pad, h + 2 * pad), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([pad, pad, pad + w, pad + h], radius=radius, fill=alpha)
+    mask = mask.filter(ImageFilter.GaussianBlur(blur))
+    base.paste(
+        Image.new("RGB", mask.size, (0, 0, 0)),
+        (x0 - pad + offset[0], y0 - pad + offset[1]), mask,
+    )
+
+
+def _jpeg(img) -> bytes:
+    out = io.BytesIO()
+    img.save(out, "JPEG", quality=92, optimize=True, subsampling=0)
+    return out.getvalue()
+
+
+# Daily cap on AI calls so a viral day can't create a surprise bill.
+_AI_DAILY_CAP = 400
+_ai_usage = {"day": None, "count": 0}
+
+
+def _ai_allowed() -> bool:
+    today = datetime.now(timezone.utc).date()
+    if _ai_usage["day"] != today:
+        _ai_usage["day"], _ai_usage["count"] = today, 0
+    if _ai_usage["count"] >= _AI_DAILY_CAP:
+        return False
+    _ai_usage["count"] += 1
+    return True
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Price list (redesigned)
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _render_price_list(biz, tagline, phone, items, style_key, logo) -> bytes:
+    S = _STYLES.get(style_key, _STYLES["giza"])
+    W, MX = 1080, 64
+    scratch = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+
+    # --- measure header
+    logo_size = 140 if logo else 0
+    name_x = MX + (logo_size + 30 if logo else 0)
+    name_w = W - MX - name_x
+    nlines, nf, nlh = _fit(scratch, biz, True, name_w, 190, 76, 40, 2)
+    text_h = len(nlines) * nlh
+    tag_lines, tag_f = [], _F(30, False)
+    if tagline.strip():
+        tag_lines = _wrap(scratch, tagline.strip(), tag_f, name_w, 2)
+    tag_h = len(tag_lines) * 40 + (8 if tag_lines else 0)
+    top = 84
+    block_h = max(logo_size, text_h + tag_h)
+    pill_y = top + block_h + 34
+    header_end = pill_y + 56 + 36
+
+    n = len(items)
+    footer_h = 170 if phone.strip() else 90
+    H = max(1080, header_end + n * 112 + footer_h + 20)
+    avail = H - header_end - footer_h - 20
+    row_h = min(150, max(112, avail // n))
+    rows_y0 = header_end + max(0, (avail - n * row_h) // 2)
+
+    # --- background + decoration
+    bg = _gradient(W, H, S["bg1"], S["bg2"])
+    _paste_circle(bg, W - 40, 40, 260, S["accent"], 38)
+    _paste_circle(bg, 0, H, 220, S["accent"], 30)
+    d = ImageDraw.Draw(bg)
+
+    # --- header
+    if logo:
+        lx, ly = MX, top + (block_h - logo_size) // 2
+        _paste_circle(bg, lx + logo_size / 2, ly + logo_size / 2, logo_size / 2 + 6, (255, 255, 255))
+        lg = _cover(logo, logo_size, logo_size)
+        m = Image.new("L", (logo_size, logo_size), 0)
+        ImageDraw.Draw(m).ellipse([0, 0, logo_size - 1, logo_size - 1], fill=255)
+        bg.paste(lg, (lx, ly), m)
+    y = top + (block_h - (text_h + tag_h)) // 2
+    for ln in nlines:
+        _t(d, (name_x, y), ln, nf, S["text"])
+        y += nlh
+    y += 8 if tag_lines else 0
+    for ln in tag_lines:
+        _t(d, (name_x, y), ln, tag_f, S["muted"])
+        y += 40
+    pf = _F(26, True)
+    pw_ = d.textlength("ORODHA YA BEI", font=pf) + 56
+    d.rounded_rectangle([MX, pill_y, MX + pw_, pill_y + 56], radius=28, fill=S["accent"])
+    _t(d, (MX + pw_ / 2, pill_y + 28), "ORODHA YA BEI", pf, S["on_accent"], "mm")
+
+    # --- rows
+    y = rows_y0
+    for i, it in enumerate(items):
+        r0, r1 = y, y + row_h - 14
+        box = (MX, r0, W - MX, r1)
+        _paste_rr(bg, box, 28, S["card"][:3], S["card"][3])
+        if not S["dark"]:
+            d.rounded_rectangle(box, radius=28, outline=(214, 218, 240), width=2)
+        cy = (r0 + r1) // 2
+
+        d.ellipse([MX + 22, cy - 26, MX + 74, cy + 26], fill=S["accent"])
+        _t(d, (MX + 48, cy), str(i + 1), _F(26, True), S["on_accent"], "mm")
+
+        price_txt = _fmt_price(it.price)
+        size = 36
+        while size > 20 and d.textlength(price_txt, font=_F(size, True)) + 44 > 420:
+            size -= 2
+        pfont = _F(size, True)
+        pw2 = d.textlength(price_txt, font=pfont) + 44
+        px1 = W - MX - 20
+        px0 = px1 - pw2
+        d.rounded_rectangle([px0, cy - 30, px1, cy + 30], radius=30, fill=S["accent"])
+        _t(d, ((px0 + px1) / 2, cy), price_txt, pfont, S["on_accent"], "mm")
+
+        avail_w = px0 - 24 - (MX + 100)
+        lines, f, lh = _fit(d, it.name.strip(), False, avail_w, row_h - 40, 38, 24, 2)
+        ty = cy - (len(lines) * lh) / 2
+        for ln in lines:
+            _t(d, (MX + 100, ty), ln, f, S["text"])
+            ty += lh
+        y += row_h
+
+    # --- footer
+    fy = H - footer_h + 6
+    if phone.strip():
+        cf = _F(32, True)
+        ptxt = _truncate(d, f"Piga / WhatsApp: {phone.strip()}", cf, W - 2 * MX - 70)
+        pwid = d.textlength(ptxt, font=cf) + 70
+        x0 = (W - pwid) / 2
+        d.rounded_rectangle([x0, fy, x0 + pwid, fy + 68], radius=34, fill=S["pill"])
+        _t(d, (W / 2, fy + 34), ptxt, cf, S["on_pill"], "mm")
+        fy += 92
+    _ctext(d, W / 2, fy, "Imetengenezwa na Wakalabot  ·  wakalabot.co.tz", _F(22, False), S["muted"])
+    return _jpeg(bg)
 
 
 @router.post("/price-list-image")
 @limiter.limit("10/minute")
-async def generate_price_list_image(request: Request, payload: PriceListRequest):
-    theme = _THEMES.get(payload.theme, _THEMES["indigo"])
-    width = 900
-    row_height = 70
-    header_height = 160
-    footer_height = 80
-    height = header_height + (row_height * len(payload.items)) + footer_height
+async def generate_price_list_image(
+    request: Request,
+    business_name: str = Form(..., min_length=2, max_length=50),
+    items_json: str = Form(...),
+    tagline: str = Form(default="", max_length=60),
+    phone: str = Form(default="", max_length=20),
+    style: str = Form(default="giza"),
+    logo: Optional[UploadFile] = File(default=None),
+):
+    try:
+        raw = json.loads(items_json)
+        if not isinstance(raw, list):
+            raise ValueError
+        items = [PriceListItem(**x) for x in raw]
+        items = [i for i in items if i.name.strip() and i.price.strip()]
+    except (ValueError, TypeError, ValidationError):
+        raise HTTPException(status_code=400, detail="Orodha ya bidhaa si sahihi.")
+    if not 1 <= len(items) <= 12:
+        raise HTTPException(status_code=400, detail="Weka bidhaa 1 hadi 12.")
 
-    img = Image.new("RGB", (width, height), theme["bg"])
-    draw = ImageDraw.Draw(img)
+    logo_img = None
+    if logo is not None and logo.filename:
+        try:
+            data = await logo.read()
+            if len(data) <= 5 * 1024 * 1024:
+                logo_img = _flatten(ImageOps.exif_transpose(Image.open(io.BytesIO(data))))
+        except Exception:
+            logo_img = None
 
-    # Header
-    title_font = _load_font(42, bold=True)
-    subtitle_font = _load_font(22)
-    draw.text((40, 40), payload.business_name[:40], font=title_font, fill=theme["text"])
-    draw.text((40, 95), "Orodha ya Bei", font=subtitle_font, fill=theme["accent"])
-    draw.line([(40, header_height - 20), (width - 40, header_height - 20)], fill=theme["accent"], width=2)
-
-    # Rows
-    item_font = _load_font(28)
-    price_font = _load_font(28, bold=True)
-    y = header_height
-    for item in payload.items:
-        price_width = int(draw.textlength(item.price, font=price_font))
-        name_text = _truncate(draw, item.name, item_font, width - 100 - price_width - 30)
-        draw.text((50, y + 18), name_text, font=item_font, fill=theme["text"])
-        draw.text((width - 50 - price_width, y + 16), item.price, font=price_font, fill=theme["accent"])
-        y += row_height
-        if item != payload.items[-1]:
-            draw.line([(50, y), (width - 50, y)], fill=(40, 40, 45), width=1)
-
-    # Footer branding
-    footer_font = _load_font(18)
-    footer_text = "Imetengenezwa na Wakalabot — wakalabot.co.tz"
-    footer_bbox = draw.textbbox((0, 0), footer_text, font=footer_font)
-    footer_width = footer_bbox[2] - footer_bbox[0]
-    draw.text(((width - footer_width) / 2, height - 50), footer_text, font=footer_font, fill=(100, 100, 110))
-
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-
-    return StreamingResponse(
-        buf,
-        media_type="image/png",
-        headers={"Content-Disposition": "inline; filename=price-list.png"},
+    jpg = await asyncio.to_thread(
+        _render_price_list, business_name.strip(), tagline, phone, items,
+        style if style in _STYLES else "giza", logo_img,
     )
+    return Response(content=jpg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Product ad generator (photo -> finished advert)
+# ═════════════════════════════════════════════════════════════════════════════
+
+_AD_LAYOUT = {
+    "square": {"W": 1080, "H": 1080, "pill_y": 46, "head_y": 118, "head_h": 170,
+               "head_max": 76, "head_lines": 2, "box": (90, 300, 900, 520), "foot_y": 1030},
+    # Story keeps key content inside Instagram's safe zone (~250px top, ~340px bottom).
+    "story": {"W": 1080, "H": 1920, "pill_y": 250, "head_y": 332, "head_h": 250,
+              "head_max": 96, "head_lines": 3, "box": (80, 640, 920, 700), "foot_y": 1560},
+}
+
+
+async def _make_headline(product: str) -> str:
+    fallbacks = [
+        f"{product} Bora Kwa Bei Nafuu", f"Pata {product} Leo!",
+        f"{product} Mpya Imewasili", f"Usikose {product}!",
+    ]
+    if not _ai_allowed():
+        return random.choice(fallbacks)
+    try:
+        resp = await _client.aio.models.generate_content(
+            model="gemini-3.1-flash-lite",
+            contents=(
+                "Andika kichwa kimoja cha tangazo kwa Kiswahili cha kawaida cha mtaani "
+                "(maneno 3 hadi 7) cha kumvutia mteja anunue: "
+                f"{product}. Bila emoji, bila alama za nukuu. Toa kichwa pekee."
+            ),
+            config=types.GenerateContentConfig(temperature=0.9, max_output_tokens=80),
+        )
+        lines = (resp.text or "").strip().splitlines()
+        if lines:
+            text = lines[0].strip().strip("\"“”'*# ")
+            if 3 <= len(text) <= 70:
+                return text
+    except Exception:
+        pass
+    return random.choice(fallbacks)
+
+
+def _render_ad(photo, price, biz, phone, headline, offer, style_key, fmt) -> bytes:
+    S = _STYLES.get(style_key, _STYLES["giza"])
+    L = _AD_LAYOUT.get(fmt, _AD_LAYOUT["square"])
+    W, H = L["W"], L["H"]
+
+    # Blurred, tinted copy of the photo as the background
+    small = _cover(photo, W // 4, H // 4).filter(ImageFilter.GaussianBlur(10))
+    bg = small.resize((W, H), Image.Resampling.BICUBIC)
+    bg = Image.blend(bg, Image.new("RGB", (W, H), S["overlay"]), S["overlay_a"])
+
+    # Real product photo as a rounded, framed card
+    px, py, pw, ph = L["box"]
+    fg = _contain(photo, pw, ph)
+    cw, ch = fg.size
+    cx0, cy0 = px + (pw - cw) // 2, py + (ph - ch) // 2
+    radius, ring = 40, 8
+    ring_box = (cx0 - ring, cy0 - ring, cx0 + cw + ring, cy0 + ch + ring)
+    _shadow(bg, ring_box, radius + ring)
+    _paste_rr(bg, ring_box, radius + ring, S["ring"])
+    bg.paste(fg, (cx0, cy0), _rr_mask(fg.size, radius))
+
+    d = ImageDraw.Draw(bg)
+
+    # Business pill
+    bf = _F(26, True)
+    btxt = _truncate(d, biz.upper(), bf, W - 220)
+    bw = d.textlength(btxt, font=bf) + 56
+    bx0 = (W - bw) / 2
+    d.rounded_rectangle([bx0, L["pill_y"], bx0 + bw, L["pill_y"] + 56], radius=28, fill=S["accent"])
+    _t(d, ((bx0 + bx0 + bw) / 2, L["pill_y"] + 28), btxt, bf, S["on_accent"], "mm")
+
+    # Headline
+    lines, hf, lh = _fit(d, headline, True, W - 140, L["head_h"], L["head_max"], 40, L["head_lines"])
+    y = L["head_y"] + (L["head_h"] - len(lines) * lh) // 2
+    for ln in lines:
+        _ctext(d, W / 2, y, ln, hf, S["text"])
+        y += lh
+
+    # Offer tag (inside the card's top-right corner)
+    if offer.strip():
+        of = _F(30, True)
+        ot = _truncate(d, offer.strip().upper(), of, min(380, cw - 80))
+        ow = d.textlength(ot, font=of) + 48
+        ox1 = cx0 + cw - 18
+        ox0 = ox1 - ow
+        oy0 = cy0 + 18
+        d.rounded_rectangle([ox0, oy0, ox1, oy0 + 60], radius=30, fill=(239, 68, 68))
+        _t(d, ((ox0 + ox1) / 2, oy0 + 30), ot, of, (255, 255, 255), "mm")
+
+    # Price badge overlapping the card's bottom-left
+    price_txt = _fmt_price(price)
+    size = 54
+    while size > 24 and d.textlength(price_txt, font=_F(size, True)) > 500:
+        size -= 2
+    prf, lab = _F(size, True), _F(22, False)
+    badge_w = max(d.textlength(price_txt, font=prf), d.textlength("BEI", font=lab)) + 56
+    badge_h = 112
+    bx0 = max(24, cx0 - 16)
+    by0 = cy0 + ch - badge_h // 2
+    _shadow(bg, (bx0, by0, bx0 + badge_w, by0 + badge_h), 28, offset=(4, 10), blur=12, alpha=120)
+    d.rounded_rectangle([bx0, by0, bx0 + badge_w, by0 + badge_h], radius=28, fill=S["accent"])
+    _ctext(d, bx0 + badge_w / 2, by0 + 12, "BEI", lab, S["on_accent"])
+    _ctext(d, bx0 + badge_w / 2, by0 + 40, price_txt, prf, S["on_accent"])
+
+    # Contact pill
+    if phone.strip():
+        cf = _F(30, True)
+        ctxt = _truncate(d, f"Piga / WhatsApp: {phone.strip()}", cf, W - 160)
+        cwid = d.textlength(ctxt, font=cf) + 64
+        cyy = py + ph + 84
+        x0 = (W - cwid) / 2
+        d.rounded_rectangle([x0, cyy, x0 + cwid, cyy + 66], radius=33, fill=S["pill"])
+        _t(d, (W / 2, cyy + 33), ctxt, cf, S["on_pill"], "mm")
+
+    # Footer (this single block is what a paid "no watermark" version would skip)
+    _ctext(d, W / 2, L["foot_y"], "Imetengenezwa na Wakalabot  ·  wakalabot.co.tz", _F(22, False), S["muted"])
+    return _jpeg(bg)
+
+
+@router.post("/product-ad")
+@limiter.limit("6/minute")
+async def generate_product_ad(
+    request: Request,
+    image: UploadFile = File(...),
+    price: str = Form(..., min_length=1, max_length=30),
+    product_name: str = Form(..., min_length=2, max_length=80),
+    business_name: str = Form(..., min_length=2, max_length=50),
+    phone: str = Form(default="", max_length=20),
+    headline: str = Form(default="", max_length=70),
+    offer: str = Form(default="", max_length=24),
+    style: str = Form(default="giza"),
+    fmt: str = Form(default="square"),
+):
+    if image.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(status_code=400, detail="Tumia picha ya JPG, PNG au WebP.")
+    data = await image.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Picha ni kubwa mno. Tumia chini ya 8MB.")
+    try:
+        photo = _flatten(ImageOps.exif_transpose(Image.open(io.BytesIO(data))))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Picha haisomeki. Jaribu nyingine.")
+    photo.thumbnail((2000, 2000))   # uploads are processed in memory and never stored
+
+    final_headline = headline.strip() or await _make_headline(product_name.strip())
+    jpg = await asyncio.to_thread(
+        _render_ad, photo, price, business_name.strip(), phone, final_headline, offer,
+        style if style in _STYLES else "giza", fmt if fmt in _AD_LAYOUT else "square",
+    )
+    return Response(content=jpg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
 
 
 

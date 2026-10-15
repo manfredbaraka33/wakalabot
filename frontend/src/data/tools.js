@@ -1,4 +1,4 @@
-import { Receipt, MessageSquareText, Calculator, TrendingUp, FileText } from 'lucide-react'
+import { Receipt, MessageSquareText, Calculator, TrendingUp, FileText, Sparkles } from 'lucide-react'
 
 export const TOOLS = [
   {
@@ -33,6 +33,15 @@ export const TOOLS = [
     iconBg: 'bg-sky-500/15',
     iconColor: 'text-sky-400',
   },
+    {
+    path: '/tools/product-ad',
+    title: 'Tangazo la Bidhaa',
+    desc: 'Piga picha ya bidhaa, pata tangazo tayari la Instagram na WhatsApp Status.',
+    icon: Sparkles,
+    iconBg: 'bg-fuchsia-500/15',
+    iconColor: 'text-fuchsia-400',
+    isNew: true,
+  },
   {
     path: '/tools/fee-calculator',
     title: 'Gharama za Mobile Money',
@@ -43,4 +52,5 @@ export const TOOLS = [
     // Flip to false only AFTER you verify each operator's official tariff.
     soon: true,
   },
+  
 ]

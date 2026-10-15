@@ -24,7 +24,11 @@ export default function ToolsHub() {
                   <Icon className={`w-6 h-6 ${tool.iconColor}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{tool.title}</p>
+                  {/* <p className="text-sm font-semibold text-white">{tool.title}</p> */}
+                  <p className="text-sm font-semibold text-white">
+                    {tool.title}
+                    {tool.isNew && <span className="ml-2 text-[10px] font-semibold uppercase text-fuchsia-300 bg-fuchsia-500/15 rounded-full px-2 py-0.5 align-middle">Mpya</span>}
+                  </p>
                   <p className="text-xs text-gray-400 mt-0.5">{tool.desc}</p>
                 </div>
                 {tool.soon ? (

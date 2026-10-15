@@ -6,6 +6,7 @@ import {
 import Footer from '../components/Footer'
 import WakalaLogo from '../components/Wakalalogo'
 import { TOOLS } from '../data/tools'
+import SiteNav from '../components/SiteNav'
 
 const FEATURES = [
   {
@@ -88,22 +89,8 @@ function FeatureCard({ icon: Icon, title, description, color, bg }) {
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-      <nav className="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <WakalaLogo />
-          <div className="flex items-center gap-4">
-            <Link to="/tools" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
-              Zana Bure
-            </Link>
-            <Link to="/register" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
-              Jisajili
-            </Link>
-            <Link to="/signin" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
-              Ingia
-            </Link>
-          </div>
-        </div>
-      </nav>
+      
+      <SiteNav />
 
       <section className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
         <div className="max-w-3xl mx-auto space-y-8 mb-12">

@@ -153,45 +153,87 @@ export default function ReceiptTool() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Bidhaa</label>
+                    <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-300">Bidhaa</label>
+
+            {/* Desktop column headers */}
+            <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_5rem_8rem_2rem] gap-2 text-[11px] text-gray-500 px-0.5">
+              <span>Jina</span><span>Idadi</span><span>Bei ya kimoja (TZS)</span><span />
+            </div>
+
             {items.map((item, i) => (
-              <div key={i} className="flex gap-2">
+              <div
+                key={i}
+                className="rounded-xl border border-gray-800 bg-gray-950/50 p-3 space-y-2
+                           sm:space-y-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0
+                           sm:grid sm:grid-cols-[minmax(0,1fr)_5rem_8rem_2rem] sm:gap-2 sm:items-center"
+              >
+                {/* Phone only: item label + delete */}
+                <div className="flex items-center justify-between sm:hidden">
+                  <span className="text-xs font-medium text-gray-500">Bidhaa {i + 1}</span>
+                  {items.length > 1 && (
+                    <button type="button" onClick={() => removeItem(i)} aria-label="Futa bidhaa"
+                      className="text-red-400 hover:text-red-300 p-1 -m-1">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
                 <input
                   value={item.name}
                   onChange={e => updateItem(i, 'name', e.target.value)}
                   placeholder="Jina la bidhaa"
                   maxLength={80}
-                  className={`flex-[2] min-w-0 ${inputCls}`}
+                  className={`w-full min-w-0 ${inputCls}`}
                 />
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={e => updateItem(i, 'quantity', e.target.value)}
-                  placeholder="Idadi"
-                  min="1"
-                  max="9999"
-                  className={`w-16 ${inputCls}`}
-                />
-                <input
-                  type="number"
-                  value={item.unit_price}
-                  onChange={e => updateItem(i, 'unit_price', e.target.value)}
-                  placeholder="Bei"
-                  min="0"
-                  max="1000000000"
-                  className={`w-28 ${inputCls}`}
-                />
-                {items.length > 1 && (
-                  <button type="button" onClick={() => removeItem(i)} className="text-red-400 hover:text-red-300 px-1">
+
+                {/* On phones: quantity + price sit side by side. On desktop: sm:contents
+                    dissolves this wrapper so they become columns of the parent grid. */}
+                <div className="grid grid-cols-2 gap-2 sm:contents">
+                  <label className="block min-w-0">
+                    <span className="block text-[11px] text-gray-500 mb-1 sm:hidden">Idadi</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={item.quantity}
+                      onChange={e => updateItem(i, 'quantity', e.target.value)}
+                      placeholder="1"
+                      min="1"
+                      max="9999"
+                      className={`w-full min-w-0 ${inputCls}`}
+                    />
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="block text-[11px] text-gray-500 mb-1 sm:hidden">Bei ya kimoja (TZS)</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={item.unit_price}
+                      onChange={e => updateItem(i, 'unit_price', e.target.value)}
+                      placeholder="Bei"
+                      min="0"
+                      max="1000000000"
+                      className={`w-full min-w-0 ${inputCls}`}
+                    />
+                  </label>
+                </div>
+
+                {/* Desktop only: delete button */}
+                {items.length > 1 ? (
+                  <button type="button" onClick={() => removeItem(i)} aria-label="Futa bidhaa"
+                    className="hidden sm:flex items-center justify-center text-red-400 hover:text-red-300">
                     <Trash2 className="w-4 h-4" />
                   </button>
+                ) : (
+                  <span className="hidden sm:block" />
                 )}
               </div>
             ))}
+
             {items.length < 15 && (
-              <button type="button" onClick={addItem} className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 mt-1">
-                <Plus className="w-3.5 h-3.5" /> Ongeza bidhaa
+              <button type="button" onClick={addItem}
+                className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300">
+                <Plus className="w-3.5 h-3.5" /> Ongeza bidhaa ({items.length}/15)
               </button>
             )}
           </div>
