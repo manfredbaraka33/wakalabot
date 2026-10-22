@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Download, Loader2, Trash2 } from 'lucide-react'
-import { mediaUrl, studioApi } from './studioApi'
+import { mediaUrl, studioApi, downloadMedia } from './studioApi'
 import { aspectOf } from './sizes'
 
 const BADGE = {
@@ -62,9 +62,12 @@ export default function StudioLibrary() {
                 {j.status === 'failed' && j.error && <p className="text-[11px] text-red-300 line-clamp-3">{j.error}</p>}
                 <div className="flex gap-2 mt-auto pt-1">
                   {j.media_url && (
-                    <a href={mediaUrl(j.media_url, true)} className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-gray-800 hover:bg-gray-700 py-1.5 text-xs">
+                    <button
+                      onClick={() => downloadMedia(j.media_url, `wakalabot-${j.id.slice(0, 8)}.jpg`)
+                        .catch(() => window.alert('Imeshindwa kupakua. Pakia upya ukurasa kisha ujaribu tena.'))}
+                      className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-gray-800 hover:bg-gray-700 py-1.5 text-xs">
                       <Download className="w-3.5 h-3.5" /> Pakua
-                    </a>
+                    </button>
                   )}
                   {(j.status === 'done' || j.status === 'failed') && (
                     <button onClick={() => { if (window.confirm('Futa kazi hii?')) del.mutate(j.id) }}

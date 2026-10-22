@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     STUDIO_IMAGE_MODEL: str = ""            # copy the exact ID from AI Studio's model list
     STUDIO_IMAGE_COST_USD: float = 0.034
     STUDIO_SIGNUP_BONUS: int = 15              # one-time credits at signup
-    STUDIO_FREE_DAILY_WATERMARKED: int = 3    # daily free watermarked posters: OFF (set 3 to bring it back)
+    STUDIO_FREE_DAILY_WATERMARKED: int = 5    # daily free watermarked posters: OFF (set 3 to bring it back)
     STUDIO_FREE_PRICELIST_DAILY: int = 5      # safety cap on free price lists per account per day
     STUDIO_PRICELIST_WATERMARK: bool = True    # False = price lists free and clean, like before
     STUDIO_PAY_NUMBER: str = ""

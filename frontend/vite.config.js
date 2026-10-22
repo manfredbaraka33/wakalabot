@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
           // Cache static assets aggressively — dashboard shell loads fast
           // on repeat visits even on slow Tanzanian mobile data
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
               // Never cache API calls — always fetch fresh data

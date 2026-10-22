@@ -61,3 +61,21 @@ export const studioApi = {
   listJobs: () => client.get('/jobs'),
   deleteJob: (id) => client.delete(`/jobs/${id}`),
 }
+
+
+// Downloads without a page navigation. A plain <a href="/api/..."> is a navigation request,
+// and the PWA service worker answers navigations with the landing page. fetch() is not affected.
+export async function downloadMedia(path, filename) {
+  const res = await fetch(mediaUrl(path))
+  const type = res.headers.get('content-type') || ''
+  if (!res.ok || !type.startsWith('image/')) throw new Error('link-expired')
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
+}
