@@ -96,3 +96,26 @@ export const getSuperAdminFeedback = (filter) =>
 
 export const getPlans = () => saClient().get('/billing/plans')
 
+
+
+const SS = '/superadmin/studio'
+export const studioOverview = () => saClient().get(`${SS}/overview`)
+export const studioCreators = (params) => saClient().get(`${SS}/creators`, { params })
+export const studioCreator = (id) => saClient().get(`${SS}/creators/${id}`)
+export const studioAdjust = (id, delta, note) => saClient().post(`${SS}/creators/${id}/credits`, { delta, note })
+export const studioSetStatus = (id, status) => saClient().post(`${SS}/creators/${id}/status`, { status })
+export const studioPayments = (status) => saClient().get(`${SS}/payments`, { params: { status } })
+export const studioApprove = (id, admin_note) => saClient().post(`${SS}/payments/${id}/approve`, { admin_note })
+export const studioReject = (id, admin_note) => saClient().post(`${SS}/payments/${id}/reject`, { admin_note })
+export const studioServices = () => saClient().get(`${SS}/services`)
+export const studioUpdateService = (key, data) => saClient().put(`${SS}/services/${key}`, data)
+export const studioPacks = () => saClient().get(`${SS}/packs`)
+export const studioUpdatePack = (id, data) => saClient().put(`${SS}/packs/${id}`, data)
+export const studioJobs = (params) => saClient().get(`${SS}/jobs`, { params })
+export const studioRefund = (id) => saClient().post(`${SS}/jobs/${id}/refund`)
+
+
+export const studioAiStatus = () => saClient().get(`${SS}/ai/status`)
+export const studioAiModels = () => saClient().get(`${SS}/ai/models`)
+export const studioAiTest = (model) => saClient().post(`${SS}/ai/test`, { model })
+export const studioAiSelect = (model, cost_usd) => saClient().post(`${SS}/ai/select`, { model, cost_usd })

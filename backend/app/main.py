@@ -20,7 +20,12 @@ from app.superadmin import router as superadmin_router
 from app.notifications import router as notifications_router
 from app.customer_auth import router as customer_auth_router
 from app.instagram import router as instagram_router
-from app.tools_public import router as tools_public_router
+
+
+import app.studio_models as _studio_models  # noqa: F401  registers Studio tables
+from app.studio import router as studio_router
+from app.studio_admin import router as studio_admin_router
+from app.studio_worker import start_worker, stop_worker
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -43,7 +48,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
     _origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
     logger.info("CORS allowed origins: %s", _origins)
+    start_worker()
     yield
+    await stop_worker()
 
 
 app = FastAPI(
@@ -89,7 +96,8 @@ app.include_router(superadmin_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(customer_auth_router, prefix="/api/v1")
 app.include_router(instagram_router, prefix="/api/v1")
-app.include_router(tools_public_router, prefix="/api/v1")
+app.include_router(studio_router, prefix="/api/v1")
+app.include_router(studio_admin_router, prefix="/api/v1")
 
 
 @app.get("/", response_model=dict)

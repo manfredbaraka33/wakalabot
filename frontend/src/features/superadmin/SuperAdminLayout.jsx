@@ -15,7 +15,8 @@ import {
   Send,
   MessageSquare,
   Moon,
-  Sun
+  Sun,
+  Sparkles
 } from 'lucide-react'
 import { clearSAToken, getSAToken } from '../../api/superadmin'
 import { Navigate } from 'react-router-dom'
@@ -32,7 +33,8 @@ const NAV = [
   { to: '/superadmin/payments', label: 'Payments', icon: Coins },
   { to: '/superadmin/customers', label: 'Customers', icon: Users },
   { to: '/superadmin/broadcast', label: 'Broadcast', icon: Send },
-  { to: '/superadmin/feedback', label: 'Feedback', icon: MessageSquare }
+  { to: '/superadmin/feedback', label: 'Feedback', icon: MessageSquare },
+  { to: '/superadmin/studio', label: 'Studio', icon: Sparkles },
 ]
 
 function NavItem({ to, label, icon: Icon, end, onClose }) {

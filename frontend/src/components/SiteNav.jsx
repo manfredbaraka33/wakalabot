@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Wrench, LogIn } from 'lucide-react'
+import { Menu, X, Wrench, LogIn, Sparkles  } from 'lucide-react'
 import WakalaLogo from './Wakalalogo'
 import ThemeToggle from './ThemeToggle'
 
 const LINKS = [
-  { to: '/tools', label: 'Zana Bure', icon: Wrench },
+  { to: '/studio', label: 'Studio', icon: Sparkles },
   { to: '/signin', label: 'Ingia', icon: LogIn },
 ]
 

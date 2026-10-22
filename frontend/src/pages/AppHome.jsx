@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MessageSquareText, LayoutDashboard, ArrowRight,Wrench } from 'lucide-react'
+import { MessageSquareText, LayoutDashboard, ArrowRight,Wrench,Sparkles } from 'lucide-react'
 import WakalaLogo from '../components/Wakalalogo'
 
 /**
@@ -63,15 +63,15 @@ export default function AppHome() {
           </button>
 
           <button
-  onClick={() => navigate('/tools')}
-  className="w-full flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-4 transition-colors text-left"
->
+            onClick={() => navigate('/studio/app')}
+            className="w-full flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-4 transition-colors text-left"
+          >
   <div className="w-11 h-11 rounded-xl bg-sky-500/15 flex items-center justify-center shrink-0">
-    <Wrench className="w-5 h-5 text-sky-400" />
+    <Sparkles className="w-5 h-5 text-sky-400" />
   </div>
   <div className="flex-1 min-w-0">
-    <p className="text-sm font-semibold text-white">Zana za Bure</p>
-    <p className="text-xs text-gray-500">Risiti, orodha ya bei, na zaidi</p>
+    <p className="text-sm font-semibold text-white">Wakalabot Studio</p>
+    <p className="text-xs text-gray-500">Matangazo na orodha ya bei (bure)</p>
   </div>
   <ArrowRight className="w-4 h-4 text-gray-600 shrink-0" />
 </button>

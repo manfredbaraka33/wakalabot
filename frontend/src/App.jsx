@@ -35,13 +35,19 @@ import InstallPrompt from './components/InstallPrompt'
 import RootEntry from './components/RootEntry'
 import UpdateToast from './components/UpdateToast'
 import AppHome from './pages/AppHome'
-import BroadcastTool from './pages/BroadcastTool'
-import PriceListTool from './pages/PriceListTool'
-import FeeCalculator from './pages/FeeCalculator'
-import MarginCalculator from './pages/MarginCalculator'
-import ReceiptTool from './pages/ReceiptTool'
-import ToolsHub from './pages/ToolsHub'
-import AdGenerator from './pages/AdGenerator'
+import StudioPriceList from './studio/StudioPriceList'
+
+
+import { Outlet } from 'react-router-dom'
+import { StudioProvider } from './studio/StudioContext'
+import StudioShell from './studio/StudioShell'
+import StudioHome from './studio/StudioHome'
+import { StudioSignup, StudioLogin, StudioForgot } from './studio/StudioAuth'
+import StudioCreate from './studio/StudioCreate'
+import StudioLibrary from './studio/StudioLibrary'
+import StudioWallet from './studio/StudioWallet'
+import StudioAccount from './studio/StudioAccount'
+import SuperAdminStudio from './features/superadmin/SuperAdminStudio'
 
 
 const queryClient = new QueryClient({
@@ -75,13 +81,23 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/tools/broadcast" element={<BroadcastTool />} />
-          <Route path="/tools/price-list" element={<PriceListTool />} />
-          <Route path="/tools/fee-calculator" element={<FeeCalculator />} />
-          <Route path="/tools/margin-calculator" element={<MarginCalculator />} />
-          <Route path="/tools/product-ad" element={<AdGenerator />} />
-          <Route path="/tools/receipt" element={<ReceiptTool />} />
-          <Route path="/tools" element={<ToolsHub />} />
+          
+          <Route path="/tools/*" element={<Navigate to="/studio" replace />} />
+
+
+          <Route path="/studio" element={<StudioProvider><Outlet /></StudioProvider>}>
+          <Route index element={<StudioHome />} />
+          <Route path="signup" element={<StudioSignup />} />
+          <Route path="login" element={<StudioLogin />} />
+          <Route path="forgot" element={<StudioForgot />} />
+          <Route path="app" element={<StudioShell />}>
+            <Route index element={<StudioCreate />} />
+            <Route path="library" element={<StudioLibrary />} />
+            <Route path="credits" element={<StudioWallet />} />
+            <Route path="account" element={<StudioAccount />} />
+            <Route path="price-list" element={<StudioPriceList />} />
+          </Route>
+        </Route>
 
           {/* Tenant dashboard */}
           <Route
@@ -111,6 +127,7 @@ export default function App() {
           <Route path="/superadmin" element={<SuperAdminLayout />}>
             <Route index element={<SuperAdminDashboard />} />
             <Route path="tenants" element={<SuperAdminTenants />} />
+            <Route path="studio" element={<SuperAdminStudio />} />
             <Route path="transactions" element={<SuperAdminTransactions />} />
             <Route path="wallets" element={<SuperAdminWallets />} />
             <Route path="tickets" element={<SuperAdminTickets />} />

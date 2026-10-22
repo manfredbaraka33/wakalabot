@@ -5,7 +5,6 @@ import {
 } from 'lucide-react'
 import Footer from '../components/Footer'
 import WakalaLogo from '../components/Wakalalogo'
-import { TOOLS } from '../data/tools'
 import SiteNav from '../components/SiteNav'
 
 const FEATURES = [
@@ -177,38 +176,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="px-6 py-20 border-t border-gray-800 bg-gray-900/30">
-        <div className="max-w-5xl mx-auto space-y-10">
-          <div className="text-center space-y-3">
-            <h2 className="text-3xl font-bold text-white">Zana za Bure kwa Wafanyabiashara</h2>
-            <p className="text-gray-400 max-w-xl mx-auto">
-              Tengeneza orodha ya bei, risiti, na ujumbe wa WhatsApp. Hakuna usajili.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {TOOLS.filter(t => !t.soon).slice(0, 4).map(tool => {
-              const Icon = tool.icon
-              return (
-                <Link key={tool.path} to={tool.path}
-                  className="bg-gray-900 border border-gray-800 hover:border-indigo-500/50 rounded-xl p-5 space-y-3 transition-colors">
-                  <div className={`w-10 h-10 rounded-xl ${tool.iconBg} flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${tool.iconColor}`} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{tool.title}</p>
-                    <p className="text-xs text-gray-400 mt-1 leading-relaxed">{tool.desc}</p>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-          <div className="text-center">
-            <Link to="/tools" className="inline-flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300">
-              Tazama zana zote <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+            <section className="px-6 py-20 border-t border-gray-800 bg-gray-900/30">
+        <div className="max-w-3xl mx-auto text-center space-y-5">
+          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-fuchsia-300 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-full px-3 py-1">Wakalabot Studio</span>
+          <h2 className="text-3xl font-bold text-white">Matangazo na orodha ya bei, kwa dakika</h2>
+          <p className="text-gray-400">
+            Pakia picha ya bidhaa, chagua muundo na rangi, pata tangazo tayari kwa Instagram, WhatsApp Status au kuchapisha.
+            Orodha ya bei ni bure kabisa.
+          </p>
+          <Link to="/studio" className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-6 py-3 text-sm font-semibold text-white transition-colors">
+            Fungua Studio <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
-</section>
+      </section>
 
       <section className="px-6 py-20 border-t border-gray-800">
         <div className="max-w-6xl mx-auto space-y-12">
