@@ -160,6 +160,7 @@ function CreatorModal({ id, onClose }) {
             <div><p className="text-xs text-gray-500">Simu</p><p className="text-white">{c.phone}</p></div>
             <div><p className="text-xs text-gray-500">Biashara</p><p className="text-white">{c.brand_name || '—'}</p></div>
             <div><p className="text-xs text-gray-500">Credits</p><p className="text-amber-300 font-bold text-lg">{c.credits}</p></div>
+                        <div><p className="text-xs text-gray-500">Alialikwa na</p><p className="text-white">{c.referred_by ? `@${c.referred_by}` : '—'}</p></div>
             <div><p className="text-xs text-gray-500">Hali</p>
               <button onClick={() => toggle.mutate(c.status === 'active' ? 'suspended' : 'active')}
                 className={`text-xs rounded-md px-2.5 py-1 border ${c.status === 'active' ? 'border-emerald-500/40 text-emerald-300' : 'border-red-500/40 text-red-300'}`}>

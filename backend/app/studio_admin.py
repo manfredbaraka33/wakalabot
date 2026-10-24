@@ -121,6 +121,7 @@ async def creator_detail(creator_id: uuid.UUID, db: AsyncSession = Depends(get_d
     return {
         "id": str(c.id), "username": c.username, "phone": c.phone, "brand_name": c.brand_name,
         "credits": c.credits, "status": c.status, "referral_code": c.referral_code,
+        "referred_by": (await db.scalar(select(Creator.username).where(Creator.id == c.referred_by))) if c.referred_by else None,
         "tos_version": c.tos_version, "created_at": c.created_at.isoformat(),
         "ledger": [{"delta": l.delta, "balance_after": l.balance_after, "kind": l.kind, "note": l.note,
                     "created_at": l.created_at.isoformat()} for l in ledger],

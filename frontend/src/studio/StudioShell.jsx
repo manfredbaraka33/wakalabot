@@ -5,8 +5,8 @@ import { useStudio } from './StudioContext'
 import ThemeToggle from '../components/ThemeToggle'
 
 const TABS = [
-  { to: '/studio/app', label: 'Tengeneza', short: 'Tengeneza', icon: Sparkles, end: true },
-  { to: '/studio/app/price-list', label: 'Orodha ya Bei', short: 'Orodha', icon: Receipt, free: true },
+  { to: '/studio/app', label: 'Tangazo', short: 'Tangazo', icon: Sparkles, end: true },
+  { to: '/studio/app/price-list', label: 'Orodha ya Bei', short: 'Orodha', icon: Receipt, free: false },
   { to: '/studio/app/library', label: 'Kazi Zangu', short: 'Kazi', icon: FolderOpen },
   { to: '/studio/app/credits', label: 'Credits', short: 'Credits', icon: Coins },
   { to: '/studio/app/account', label: 'Akaunti', short: 'Akaunti', icon: User },
@@ -45,9 +45,9 @@ export default function StudioShell() {
             {TABS.map(({ to, label, icon: Icon, end, free }) => (
               <NavLink key={to} to={to} end={end}
                 className={({ isActive }) => `flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-indigo-500/15 text-indigo-300' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}>
+                  isActive ? 'bg-indigo-500/15 text-indigo-500' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}>
                 <Icon className="w-4 h-4" /> {label}
-                {free && <span className="text-[9px] font-bold uppercase text-emerald-300 bg-emerald-500/15 rounded-full px-1.5 py-0.5">Bure</span>}
+                {free && <span className="text-[9px] font-bold uppercase text-emerald-500 bg-emerald-500/15 rounded-full px-1.5 py-0.5">Bure</span>}
               </NavLink>
             ))}
           </nav>

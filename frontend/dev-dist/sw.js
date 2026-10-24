@@ -81,11 +81,12 @@ define(['./workbox-63ab604a'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.i70vn1p6utg"
+    "revision": "0.hfe7pmvncus"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
-    allowlist: [/^\/$/]
+    allowlist: [/^\/$/],
+    denylist: [/^\/api\//]
   }));
   workbox.registerRoute(/^https:\/\/wakalabot\.co\.tz\/api\/.*/, new workbox.NetworkOnly(), 'GET');
   workbox.registerRoute(/^https:\/\/res\.cloudinary\.com\/.*/, new workbox.CacheFirst({

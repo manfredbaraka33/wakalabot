@@ -4,7 +4,7 @@ import WakalaLogo from '../components/Wakalalogo'
 import { getStudioToken } from './studioApi'
 
 const MODES = [
-  { icon: LayoutGrid, title: 'Miundo 14', color: 'text-indigo-400', bg: 'bg-indigo-500/15',
+  { icon: LayoutGrid, title: 'Miundo 21', color: 'text-indigo-400', bg: 'bg-indigo-500/15',
     text: 'Kadi, picha kubwa, neon, polaroid, dirisha na zaidi. Miundo mipya inaongezwa kila mara.' },
   { icon: Palette, title: 'Rangi 8', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/15',
     text: 'Giza, Zumaridi, Machweo, Bahari, Waridi na zaidi. Ona muonekano papo hapo kabla ya kutengeneza.' },

@@ -1,22 +1,27 @@
-"""Studio price lists: 6 designs x 8 palettes x 4 sizes. Free, with an optional small watermark.
+"""Studio price lists: 14 designs x 8 palettes x 4 sizes. Free, with an optional small watermark.
 Text shrinks and wraps to fit; it is never cut with "..."."""
 import io
+import math
 import random
 import re
 from functools import lru_cache
 from types import SimpleNamespace
 
-from PIL import Image, ImageDraw, ImageStat
+from PIL import Image, ImageDraw, ImageFilter, ImageStat
 
-from app.studio_draw import _F, _cover, _gradient, _jpeg, _paste_circle, _paste_rr, _t
+from app.studio_draw import _F, _cover, _gradient, _jpeg, _paste_circle, _paste_rr, _rr_mask, _shadow, _t
 from app.studio_templates import (
-    PALETTES, PALETTE_IDS, SIZES, _circle_mask, _fit_block, _fit_line, _glow,
+    PALETTES, PALETTE_IDS, SIZES, _acc_dark, _acc_text, _circle_mask, _fit_block, _fit_line, _glow,
+    _lerp, _star, _text_on, _vivid,
 )
 
 PL_TEMPLATE_NAMES = {
     "orodha": "Kadi", "menyu": "Menyu", "jedwali": "Jedwali",
     "bango": "Bango", "gridi": "Gridi", "neon": "Neon",
+    "duka": "Duka", "ubao": "Ubao", "risiti": "Risiti", "mawimbi": "Mawimbi",
+    "vipande": "Vipande", "kioo": "Kioo", "jarida": "Jarida", "lebo": "Lebo",
 }
+
 PL_TEMPLATE_IDS = tuple(PL_TEMPLATE_NAMES)
 PL_TEMPLATE_LIST = [{"id": k, "name": v} for k, v in PL_TEMPLATE_NAMES.items()]
 
@@ -321,7 +326,7 @@ def _gridi(c):                                    # 2-column grid of cards
 
 
 def _neon(c):                                     # dark with a glowing frame
-    glow = c.p["accent"]
+    glow = _vivid(c.p["accent"])
     img = _gradient(c.W, c.H, (8, 8, 14), (24, 12, 36))
     d = ImageDraw.Draw(img)
     y = _header(c, img, d, c.top, "center", (255, 255, 255), (170, 170, 190))
@@ -346,9 +351,335 @@ def _neon(c):                                     # dark with a glowing frame
     return img
 
 
+# ── Helpers for the 8 newer designs ───────────────────────────────────────────
+def _chip(d, px1, cy, text, fill, ink, rh, max_w=300):
+    """Price chip, right-aligned at px1. Returns its width."""
+    chh = min(52, max(28, rh - 10))
+    txt, f, _sz = _fit_line(d, text, True, max_w, max(18, int(chh * 0.74)), 14)
+    w = d.textlength(txt, font=f) + chh * 0.8
+    d.rounded_rectangle([px1 - w, cy - chh / 2, px1, cy + chh / 2], radius=chh / 2, fill=fill)
+    _t(d, (px1 - w / 2, cy), txt, f, ink, "mm")
+    return w
+
+
+def _row_name(d, name, x, max_w, cy, rh, color, size=36):
+    lines, nf, lh = _name_lines(d, name, max_w, rh, size)
+    ty = cy - len(lines) * lh / 2
+    for ln in lines:
+        _t(d, (x, ty), ln, nf, color, "la")
+        ty += lh
+
+
+# ── 8 more designs ────────────────────────────────────────────────────────────
+def _duka(c):                                     # market-stall awning over a sign board
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    d = ImageDraw.Draw(img)
+    n_str = 12
+    sw = c.W / n_str
+    ah = 150 if c.H < 1300 else 170
+    for i in range(n_str):
+        col = p["accent"] if i % 2 == 0 else (255, 255, 255)
+        x0, x1 = i * sw, (i + 1) * sw
+        d.rectangle([x0, 0, x1, ah], fill=col)
+        d.pieslice([x0, ah - sw / 2, x1, ah + sw / 2], 0, 180, fill=col)
+    d.line([(0, ah - 4), (c.W, ah - 4)], fill=_lerp(p["accent"], (0, 0, 0), 0.2), width=3)
+    y = _header(c, img, d, max(c.top, ah + int(sw / 2) + 18), "center")
+    y = _title_pill(c, d, y + 14, "center") + 22
+    fy = _footer(c, d)
+    y0, rh = _rows_box(c, y, fy, 118)
+    pad = 70
+    for i, it in enumerate(c.items):
+        r0 = y0 + i * rh
+        cy = r0 + rh // 2
+        if i:
+            d.line([(pad, r0), (c.W - pad, r0)], fill=p["muted"], width=1)
+        w = _chip(d, c.W - pad, cy, _price(it["price"]), p["accent"], p["on_accent"], rh)
+        _row_name(d, it["name"], pad, c.W - 2 * pad - w - 24, cy, rh, p["text"])
+    return img
+
+
+def _ubao(c):                                     # chalkboard menu in a wooden frame
+    p = c.p
+    wood, wood_hi = (112, 78, 48), (146, 104, 66)
+    img = Image.new("RGB", (c.W, c.H), wood)
+    d = ImageDraw.Draw(img)
+    for gy in range(0, c.H, 26):                  # wood grain
+        d.line([(0, gy), (c.W, gy + 6)], fill=(104, 71, 43), width=2)
+    board = _lerp((24, 34, 32), p["bg2"], 0.25) if p["dark"] else (30, 44, 40)
+    m = 34
+    d.rounded_rectangle([m - 6, m - 6, c.W - m + 6, c.H - m + 6], radius=22, fill=wood_hi)
+    board_img = _gradient(c.W - 2 * m, c.H - 2 * m, board, _lerp(board, (0, 0, 0), 0.25))
+    img.paste(board_img, (m, m), _rr_mask(board_img.size, 14))
+    d = ImageDraw.Draw(img)
+    chalk, chalk_dim, acc = (244, 242, 232), (176, 178, 170), _vivid(p["accent"])
+    for sx, sy in ((m + 46, m + 46), (c.W - m - 46, m + 46)):
+        _star(d, sx, sy, 15, 6, 5, chalk_dim)
+    y = _header(c, img, d, c.top + 8, "center", chalk, chalk_dim) + 14
+    tt, tf, tsz = _fit_line(d, c.title, True, c.W - 220, 52, 22)
+    _t(d, (c.W / 2, y), tt, tf, acc, "ma")
+    tw = d.textlength(tt, font=tf)
+    uy = y + int(tsz * 1.25)
+    d.line([(c.W / 2 - tw / 2, uy), (c.W / 2 + tw / 2, uy)], fill=acc, width=3)
+    d.line([(c.W / 2 - tw / 2 + 30, uy + 9), (c.W / 2 + tw / 2 - 30, uy + 9)], fill=acc, width=2)
+    y = uy + 36
+    fy = _footer(c, d, fill=chalk, color=board)
+    y0, rh = _rows_box(c, y, fy, 112)
+    pad = 96
+    for i, it in enumerate(c.items):
+        cy = y0 + i * rh + rh // 2
+        ptxt, pf, _ps = _fit_line(d, _price(it["price"]), True, 300, 40, 16)
+        pw = d.textlength(ptxt, font=pf)
+        _t(d, (c.W - pad, cy), ptxt, pf, acc, "rm")
+        name, nf, _ns = _fit_line(d, it["name"], False, c.W - 2 * pad - pw - 60, 38, 16)
+        nw = d.textlength(name, font=nf)
+        _t(d, (pad, cy), name, nf, chalk, "lm")
+        x, end = pad + nw + 14, c.W - pad - pw - 14
+        while x < end:
+            d.ellipse([x, cy + 8, x + 4, cy + 12], fill=chalk_dim)
+            x += 14
+    return img
+
+
+def _risiti(c):                                   # till-slip receipt with torn edges
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    d = ImageDraw.Draw(img)
+    paper, ink, faint = (251, 250, 246), (30, 30, 38), (130, 130, 140)
+    px0, px1 = 90, c.W - 90
+    top, bot = c.top + 6, c.bot - 16
+    step, depth = 30, 12
+    n = max(2, int((px1 - px0) // step))
+
+    def outline(dx=0, dy=0):
+        pts = [(px0 + i * (px1 - px0) / n + dx, top + (depth if i % 2 else 0) + dy) for i in range(n + 1)]
+        pts += [(px0 + i * (px1 - px0) / n + dx, bot - (depth if i % 2 else 0) + dy) for i in range(n, -1, -1)]
+        return pts
+
+    d.polygon(outline(8, 14), fill=_lerp(p["bg2"], (0, 0, 0), 0.45))
+    d.polygon(outline(), fill=paper)
+    cx = c.W / 2
+    y = top + depth + 36
+    if c.logo:
+        ls = 70 if c.compact else 100
+        img.paste(_cover(c.logo, ls, ls), (int(cx - ls / 2), int(y)), _circle_mask(ls))
+        y += ls + 14
+    lines, f, lh = _fit_block(d, c.biz.upper(), True, px1 - px0 - 80, 66 if c.compact else 100,
+                              40 if c.compact else 54, 24, 2)
+    for ln in lines:
+        _t(d, (cx, y), ln, f, ink, "ma")
+        y += lh
+    if c.tagline and not c.compact:
+        tl, tf, tlh = _fit_block(d, c.tagline, False, px1 - px0 - 80, 66, 26, 16, 2)
+        for ln in tl:
+            _t(d, (cx, y), ln, tf, faint, "ma")
+            y += tlh
+    y += 10
+
+    def dashed(yy):
+        x = px0 + 40
+        while x < px1 - 40:
+            d.line([(x, yy), (min(x + 14, px1 - 40), yy)], fill=faint, width=2)
+            x += 24
+
+    dashed(y)
+    y += 18
+    tt, tf, tsz = _fit_line(d, c.title, True, px1 - px0 - 80, 28, 14)
+    _t(d, (cx, y), tt, tf, ink, "ma")
+    y += int(tsz * 1.5)
+    dashed(y)
+    y += 14
+    foot_h = 150 if c.phone else 112
+    y_end = bot - depth - foot_h
+    y0, rh = _rows_box(c, y, y_end, 96)
+    for i, it in enumerate(c.items):
+        cy = y0 + i * rh + rh // 2
+        ptxt, pf, _ps = _fit_line(d, _price(it["price"]), True, 260, 34, 14)
+        pw = d.textlength(ptxt, font=pf)
+        _t(d, (px1 - 44, cy), ptxt, pf, ink, "rm")
+        name, nf, _ns = _fit_line(d, it["name"], False, px1 - px0 - 88 - pw - 50, 32, 14)
+        nw = d.textlength(name, font=nf)
+        _t(d, (px0 + 44, cy), name, nf, ink, "lm")
+        x, end = px0 + 44 + nw + 12, px1 - 44 - pw - 12
+        while x < end:
+            d.ellipse([x, cy + 6, x + 3, cy + 9], fill=faint)
+            x += 11
+    by = y_end + 18
+    rng = random.Random(c.biz)
+    x = cx - 150
+    while x < cx + 150:
+        bw = rng.choice([2, 2, 3, 4, 6])
+        d.rectangle([x, by, x + bw - 1, by + 40], fill=ink)
+        x += bw + rng.choice([2, 3, 4])
+    ty = by + 52
+    if c.phone:
+        t, f, _sz = _fit_line(d, f"Piga / WhatsApp: {c.phone}", True, px1 - px0 - 80, 26, 14)
+        _t(d, (cx, ty), t, f, ink, "ma")
+        ty += 36
+    t, f, _sz = _fit_line(d, "Asante kwa kuchagua " + c.biz, False, px1 - px0 - 80, 22, 12)
+    _t(d, (cx, ty), t, f, faint, "ma")
+    return img
+
+
+def _mawimbi(c):                                  # wave header over a white sheet
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    d = ImageDraw.Draw(img)
+    hb = c.top + (170 if c.compact else 280)
+    amp, length = 26, 560
+    pts = [(x, hb + amp * math.sin(2 * math.pi * x / length)) for x in range(0, c.W + 1, 10)]
+    d.polygon([(0, 0), (c.W, 0)] + pts[::-1], fill=p["accent"])
+    d.polygon(pts + [(x, y + 22) for x, y in pts[::-1]], fill=_lerp(p["accent"], (255, 255, 255), 0.32))
+    _header(c, img, d, c.top, "left", p["on_accent"], p["on_accent"])
+    fy = _footer(c, d)
+    sx0, sx1 = 44, c.W - 44
+    sy0, sy1 = int(hb + amp + 36), int(fy - 6)
+    _shadow(img, (sx0, sy0, sx1, sy1), 40, offset=(0, 14), blur=18, alpha=120)
+    _paste_rr(img, (sx0, sy0, sx1, sy1), 40, (252, 252, 252))
+    d = ImageDraw.Draw(img)
+    ink, line = (28, 28, 40), (226, 228, 236)
+    tt, tf, tsz = _fit_line(d, c.title, True, sx1 - sx0 - 80, 28, 14)
+    _t(d, (sx0 + 40, sy0 + 24), tt, tf, _acc_dark(p), "la")
+    ry = sy0 + 24 + int(tsz * 1.5) + 8
+    y0, rh = _rows_box(c, ry, sy1 - 18, 118)
+    for i, it in enumerate(c.items):
+        r0 = y0 + i * rh
+        cy = r0 + rh // 2
+        if i:
+            d.line([(sx0 + 40, r0), (sx1 - 40, r0)], fill=line, width=1)
+        w = _chip(d, sx1 - 36, cy, _price(it["price"]), p["accent"], p["on_accent"], rh)
+        _row_name(d, it["name"], sx0 + 40, sx1 - sx0 - 80 - w - 24, cy, rh, ink)
+    return img
+
+
+def _vipande(c):                                  # coloured bars that fade down the list
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    d = ImageDraw.Draw(img)
+    y = _header(c, img, d, c.top, "center")
+    y = _title_pill(c, d, y + 18, "center") + 24
+    fy = _footer(c, d)
+    y0, rh = _rows_box(c, y, fy, 120)
+    pad = 56
+    a, b = p["accent"], _lerp(p["accent"], p["bg2"], 0.55)
+    for i, it in enumerate(c.items):
+        col = _lerp(a, b, i / max(1, c.n - 1))
+        r0, r1 = y0 + i * rh, y0 + (i + 1) * rh - 10
+        _paste_rr(img, (pad, r0, c.W - pad, r1), max(8, min(28, int((r1 - r0) // 2))), col)
+        cy = (r0 + r1) / 2
+        w = _chip(d, c.W - pad - 14, cy, _price(it["price"]), (255, 255, 255), (24, 24, 36), rh)
+        _row_name(d, it["name"], pad + 28, c.W - 2 * pad - 28 - w - 40, cy, rh, _text_on(col))
+    return img
+
+
+def _kioo(c):                                     # frosted glass card over soft colour blobs
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    _paste_circle(img, int(c.W * 0.16), int(c.H * 0.20), 300, p["accent"], 150)
+    _paste_circle(img, int(c.W * 0.92), int(c.H * 0.76), 360, _lerp(p["accent"], (255, 255, 255), 0.3), 120)
+    d = ImageDraw.Draw(img)
+    y = _header(c, img, d, c.top, "center")
+    fy = _footer(c, d)
+    x0, x1, y0, y1 = 50, c.W - 50, int(y + 24), int(fy - 4)
+    region = img.crop((x0, y0, x1, y1)).filter(ImageFilter.GaussianBlur(26))
+    tint, amt = ((255, 255, 255), 0.55) if not p["dark"] else (p["overlay"], 0.42)
+    region = Image.blend(region, Image.new("RGB", region.size, tint), amt)
+    img.paste(region, (x0, y0), _rr_mask(region.size, 44))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([x0, y0, x1, y1], radius=44, outline=(255, 255, 255), width=2)
+    ty = _title_pill(c, d, y0 + 26, "center") + 14
+    y_rows, rh = _rows_box(c, ty, y1 - 22, 116)
+    pad = x0 + 44
+    for i, it in enumerate(c.items):
+        r0 = y_rows + i * rh
+        cy = r0 + rh // 2
+        if i:
+            d.line([(pad, r0), (x1 - 44, r0)], fill=_lerp(p["bg1"], p["text"], 0.28), width=1)
+        w = _chip(d, x1 - 40, cy, _price(it["price"]), p["accent"], p["on_accent"], rh)
+        _row_name(d, it["name"], pad, x1 - 40 - w - 24 - pad, cy, rh, p["text"])
+    return img
+
+
+def _jarida(c):                                   # editorial: big title, thin rules, numbered rows
+    p = c.p
+    img = Image.new("RGB", (c.W, c.H), p["bg1"])
+    d = ImageDraw.Draw(img)
+    acc = _acc_text(p)
+    d.rectangle([0, 0, 22, c.H], fill=p["accent"])
+    pad = 84
+    y = c.top
+    if c.biz:
+        t, f, _sz = _fit_line(d, c.biz.upper(), True, c.W - 2 * pad - 120, 26, 14)
+        _t(d, (pad, y), t, f, acc, "la")
+        y += 44
+    lines, tf, tlh = _fit_block(d, c.title_raw, True, c.W - 2 * pad, 120 if c.compact else 220,
+                                72 if c.compact else 112, 40, 2)
+    for ln in lines:
+        _t(d, (pad, y), ln, tf, p["text"], "la")
+        y += tlh
+    if c.tagline and not c.compact:
+        tl, tgf, tgh = _fit_block(d, c.tagline, False, c.W - 2 * pad, 70, 28, 16, 2)
+        for ln in tl:
+            _t(d, (pad, y + 4), ln, tgf, p["muted"], "la")
+            y += tgh
+    y += 22
+    d.line([(pad, y), (c.W - pad, y)], fill=p["text"], width=3)
+    y += 10
+    if c.numeric:
+        _t(d, (c.W - pad, y + 2), "BEI KWA TZS", _F(20, True), p["muted"], "ra")
+        y += 30
+    fy = _footer(c, d, fill=p["pill"], color=p["on_pill"])
+    y0, rh = _rows_box(c, y, fy, 120)
+    for i, it in enumerate(c.items):
+        r0 = y0 + i * rh
+        cy = r0 + rh // 2
+        if i:
+            d.line([(pad, r0), (c.W - pad, r0)], fill=_lerp(p["bg1"], p["text"], 0.18), width=1)
+        _t(d, (pad, cy), f"{i + 1:02d}", _F(max(18, min(34, rh - 16)), True), _lerp(p["bg1"], p["text"], 0.35), "lm")
+        ptxt, pf, _ps = _fit_line(d, _price(it["price"]), True, 340, max(20, min(46, rh - 12)), 14)
+        pw = d.textlength(ptxt, font=pf)
+        _t(d, (c.W - pad, cy), ptxt, pf, acc, "rm")
+        _row_name(d, it["name"], pad + 78, c.W - 2 * pad - 78 - pw - 30, cy, rh, p["text"])
+    return img
+
+
+def _lebo(c):                                     # tag-shaped price labels
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    d = ImageDraw.Draw(img)
+    y = _header(c, img, d, c.top, "left")
+    y = _title_pill(c, d, y + 18, "left") + 26
+    fy = _footer(c, d)
+    y0, rh = _rows_box(c, y, fy, 120)
+    pad = 56
+    for i, it in enumerate(c.items):
+        r0, r1 = y0 + i * rh, y0 + (i + 1) * rh - 12
+        h = r1 - r0
+        cy = (r0 + r1) / 2
+        rad = max(8, min(26, int(h // 2)))
+        _paste_rr(img, (pad, r0, c.W - pad, r1), rad, c.card[0], c.card[1])
+        if c.edge:
+            d.rounded_rectangle([pad, r0, c.W - pad, r1], radius=rad, outline=c.edge, width=2)
+        th = h - 14
+        ty0, ty1 = cy - th / 2, cy + th / 2
+        ptxt, pf, _ps = _fit_line(d, _price(it["price"]), True, 300, max(16, int(th * 0.52)), 14)
+        tw_ = d.textlength(ptxt, font=pf) + th * 1.0
+        x1 = c.W - pad - 10
+        x0 = x1 - tw_
+        pt = th * 0.38                            # width of the pointed end
+        d.polygon([(x0, cy), (x0 + pt, ty0), (x1, ty0), (x1, ty1), (x0 + pt, ty1)], fill=p["accent"])
+        hr = max(3, th * 0.07)
+        d.ellipse([x0 + pt * 0.55 - hr, cy - hr, x0 + pt * 0.55 + hr, cy + hr], fill=p["bg1"])
+        _t(d, (x0 + pt + (x1 - x0 - pt) / 2, cy), ptxt, pf, p["on_accent"], "mm")
+        _row_name(d, it["name"], pad + 28, x0 - 24 - (pad + 28), cy, rh, p["text"])
+    return img
+
+
 _RENDERERS = {
     "orodha": _orodha, "menyu": _menyu, "jedwali": _jedwali,
     "bango": _bango, "gridi": _gridi, "neon": _neon,
+    "duka": _duka, "ubao": _ubao, "risiti": _risiti, "mawimbi": _mawimbi,
+    "vipande": _vipande, "kioo": _kioo, "jarida": _jarida, "lebo": _lebo,
 }
 
 
@@ -391,7 +722,7 @@ _SAMPLE = [("Kitenge cha Ankara", "25000"), ("Gauni la Kitenge", "45000"), ("Sha
            ("Viatu vya Ngozi", "60000"), ("Mkoba wa Mkono", "35000")]
 
 
-@lru_cache(maxsize=256)
+@lru_cache(maxsize=512)
 def preview_jpeg(template_id: str, palette_id: str, fmt: str) -> bytes:
     items = [{"name": n, "price": pr} for n, pr in _SAMPLE]
     img = _render(template_id, palette_id, items, "Amina Fashion", "Orodha ya Bei",

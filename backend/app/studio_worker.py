@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.core import settings
 from app.db import engine
 from app.studio_config import image_cost_usd
-from app.studio_credits import refund_job
+from app.studio_credits import refund_job, reward_referral_on_first_job
 from app.studio_models import Creator, CreatorJob
 from app.studio_providers import JobRejected, ProviderError, generate_scene, make_plan, to_mp3
 from app.studio_pricelist import render_pricelist, resolve_choice as resolve_pl_choice
@@ -156,8 +156,17 @@ async def _run(job_id):
         )).scalar_one()
         job.status, job.finished_at = "done", _now()
         job.result_path, job.result_meta, job.api_cost_usd = f"out/{job_id}.jpg", meta, api_cost
+        owner_id = job.creator_id
         await db.commit()
 
+    # Referral reward: a separate transaction AFTER the job is saved, so it can never break a finished job.
+    try:
+        async with SessionLocal() as rdb:
+            await reward_referral_on_first_job(rdb, owner_id)
+            await rdb.commit()
+    except Exception:
+        logger.exception("referral reward failed")
+       
 
 async def _process(job_id):
     try:

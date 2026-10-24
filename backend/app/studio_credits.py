@@ -120,3 +120,43 @@ async def pricelists_today(db: AsyncSession, creator_id) -> int:
             CreatorJob.created_at >= eat_day_start(),
         )
     )) or 0)
+
+
+
+import logging as _logging
+
+_log = _logging.getLogger("studio.credits")
+
+ACTIVATION_REWARD = 5        # credits to the inviter when a friend finishes their first job
+ACTIVATION_REWARD_CAP = 10   # max friends rewarded this way per inviter
+
+
+async def reward_referral_on_first_job(db: AsyncSession, creator_id) -> None:
+    """Call after any job finishes. If this creator was invited and the inviter has not been rewarded
+    for them yet, pay it now. Pays at most once per friend (ledger ref 'act:<friend id>') and at most
+    ACTIVATION_REWARD_CAP friends per inviter. Safe to call after every job. Caller commits."""
+    friend = (await db.execute(
+        select(Creator).where(Creator.id == creator_id).with_for_update()   # serialises parallel jobs
+    )).scalar_one_or_none()
+    if friend is None or friend.referred_by is None:
+        return
+    inviter_id = friend.referred_by
+    ref = f"act:{creator_id}"
+
+    already = await db.scalar(select(func.count(CreditLedger.id)).where(
+        CreditLedger.creator_id == inviter_id, CreditLedger.kind == "referral", CreditLedger.ref == ref))
+    if already:
+        return
+    done = await db.scalar(select(func.count(CreatorJob.id)).where(
+        CreatorJob.creator_id == creator_id, CreatorJob.status == "done"))
+    if not done:
+        return
+    rewarded = await db.scalar(select(func.count(CreditLedger.id)).where(
+        CreditLedger.creator_id == inviter_id, CreditLedger.kind == "referral",
+        CreditLedger.ref.like("act:%")))
+    if (rewarded or 0) >= ACTIVATION_REWARD_CAP:
+        _log.info("referral cap reached for inviter %s", inviter_id)
+        return
+    await adjust_credits(db, inviter_id, ACTIVATION_REWARD, "referral",
+                         ref=ref, note="Rafiki alitengeneza tangazo lake la kwanza")
+    _log.info("referral reward: inviter=%s friend=%s +%s", inviter_id, creator_id, ACTIVATION_REWARD)

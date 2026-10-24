@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Gift, Loader2 } from 'lucide-react'
 import { useStudio } from './StudioContext'
+import ReferralPanel from './ReferralPanel'
 import { errText, studioApi } from './studioApi'
 
 const KIND = {
@@ -130,19 +131,8 @@ export default function StudioWallet() {
           </div>
         </div>
       )}
-
-      {creator && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-2">
-          <div className="flex items-center gap-2 text-white font-semibold text-sm"><Gift className="w-4 h-4 text-fuchsia-400" /> Alika rafiki, pata credits</div>
-          <p className="text-xs text-gray-400">Rafiki yako akinunua credits kwa mara ya kwanza kupitia kiungo chako, unapata zawadi ya credits.</p>
-          <div className="flex items-center gap-2 bg-gray-950 rounded-lg px-3 py-2">
-            <span className="text-xs text-indigo-300 truncate">{refLink}</span>
-            <button onClick={() => copy(refLink, 'ref')} className="ml-auto text-gray-400 hover:text-white shrink-0">
-              {copied === 'ref' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-      )}
+      
+      {creator && <ReferralPanel refLink={refLink} />}
 
       {wallet?.ledger?.length > 0 && (
         <div>

@@ -14,7 +14,9 @@ export function StudioProvider({ children }) {
     queryFn: () => studioApi.me().then((r) => r.data),
     enabled: !!token,
     retry: false,
-    staleTime: 30000,
+    staleTime: 15000,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {

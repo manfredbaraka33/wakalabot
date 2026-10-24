@@ -23,7 +23,7 @@ PALETTES.update({
     "waridi": {"bg1": (48, 10, 32), "bg2": (131, 24, 67), "accent": (244, 114, 182), "on_accent": (60, 8, 36),
                "text": (255, 255, 255), "muted": (251, 191, 219), "pill": (255, 255, 255), "on_pill": (80, 10, 45),
                "overlay": (50, 10, 34), "ring": (244, 114, 182), "dark": True},
-    "jua": {"bg1": (255, 251, 235), "bg2": (253, 230, 138), "accent": (245, 158, 11), "on_accent": (30, 20, 0),
+    "jua": {"bg1": (255, 251, 235), "bg2": (253, 230, 138), "accent": (217, 119, 6), "on_accent": (30, 20, 0),
             "text": (28, 25, 23), "muted": (120, 100, 60), "pill": (28, 25, 23), "on_pill": (255, 251, 235),
             "overlay": (255, 248, 220), "ring": (255, 255, 255), "dark": False},
     "zambarau": {"bg1": (24, 10, 50), "bg2": (76, 29, 149), "accent": (192, 132, 252), "on_accent": (36, 10, 70),
@@ -329,7 +329,7 @@ def _gazeti(c):
 
 
 def _neon(c):
-    glow = c.p["accent"]
+    glow = _vivid(c.p["accent"])
     img = _gradient(c.W, c.H, (8, 8, 14), (24, 12, 36))
     d = ImageDraw.Draw(img)
     y = _biz_pill(c, d, c.top, fill=(18, 18, 28), color=glow) + 22
@@ -535,9 +535,10 @@ def _pop(c):                        # retro pop with starburst price
         sx, sy = x1 - 60, y1 - 20
         _star(d, sx, sy, 150, 120, 14, (255, 255, 255))
         main, f, sz = _fit_line(d, main, True, 190, 52, 16)
-        _t(d, (sx, sy - (10 if unit else 0)), main, f, p["on_accent"], "mm")
+        ink = (24, 24, 36)   # fixed dark ink: the star is white, so never use on_accent here (it is white in Safi)
+        _t(d, (sx, sy - (10 if unit else 0)), main, f, ink, "mm")
         if unit:
-            _t(d, (sx, sy + sz * 0.7), unit, _F(max(16, int(sz * 0.4)), True), p["on_accent"], "mm")
+            _t(d, (sx, sy + sz * 0.7), unit, _F(max(16, int(sz * 0.4)), True), ink, "mm")
     _contact(c, d, cy, fill=p["on_accent"], color=p["accent"])
     _footer(c, d, p["on_accent"])
     return img
@@ -599,7 +600,275 @@ def _kona(c):                       # big circle bleeding off the corner
     return img
 
 
+# ── Shared helpers for the newer designs ──────────────────────────────────────
+def _lerp(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
+
+def _text_on(rgb):
+    """White or near-black, whichever is readable on this colour."""
+    return (255, 255, 255) if (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) < 150 else (24, 24, 36)
+
+
+def _vivid(rgb):
+    """Lift dark accents (like Safi's indigo) so they stay readable on near-black backgrounds."""
+    lum = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255
+    if lum >= 0.45:
+        return tuple(rgb)
+    t = min(0.6, (0.45 - lum) * 1.8 + 0.2)
+    return tuple(int(v + (255 - v) * t) for v in rgb)
+
+
+def _acc_text(p):
+    """Accent colour for TEXT drawn straight onto the palette background."""
+    return tuple(p["accent"]) if p["dark"] else tuple(int(v * 0.62) for v in p["accent"])
+
+
+def _acc_dark(p):
+    """Accent colour for TEXT drawn on a white sheet."""
+    return tuple(int(v * 0.62) for v in p["accent"])
+
+
+def _oval_mask(w, h):
+    m = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(m).ellipse([0, 0, w - 1, h - 1], fill=255)
+    return m
+
+
+def _price_seal(c, img, d, cx, cy, r, fill=(255, 255, 255), ink=(24, 24, 36), points=0):
+    """White badge with dark price text (readable in every palette). points>0 = scalloped seal."""
+    txt = _fmt_price(c.price)
+    main, unit = (txt[:-4], "TZS") if txt.endswith(" TZS") else (txt, "")
+    _shadow(img, (cx - r, cy - r, cx + r, cy + r), int(r), offset=(4, 10), blur=12, alpha=120)
+    if points:
+        _star(d, cx, cy, r, r * 0.88, points, fill)
+    else:
+        _paste_circle(img, cx, cy, r, fill)
+    main, f, sz = _fit_line(d, main, True, r * 1.45, 52, 16)
+    _t(d, (cx, cy - (8 if unit else 0)), main, f, ink, "mm")
+    if unit:
+        _t(d, (cx, cy + sz * 0.62), unit, _F(max(16, int(sz * 0.42)), True), ink, "mm")
+
+
+# ── 7 more poster layouts ─────────────────────────────────────────────────────
+def _mkanda(c):                     # photo + ribbon banner + scalloped price seal
+    p = c.p
+    img = _cover(c.photo, c.W, c.H)
+    _band(img, 0, int(c.H * 0.30), 190, 0)
+    _band(img, int(c.H * 0.60), c.H, 0, 220)
+    d = ImageDraw.Draw(img)
+    _biz_pill(c, d, c.top)
+    cy = c.cbot - 66
+    rh = 230 if c.tall else 190
+    ry = int(c.H * 0.50)
+    notch = 46
+    d.polygon([(0, ry), (c.W, ry), (c.W - notch, ry + rh / 2), (c.W, ry + rh), (0, ry + rh), (notch, ry + rh / 2)],
+              fill=p["accent"])
+    d.line([(0, ry + 8), (c.W, ry + 8)], fill=_lerp(p["accent"], (255, 255, 255), 0.35), width=3)
+    d.line([(0, ry + rh - 8), (c.W, ry + rh - 8)], fill=_lerp(p["accent"], (0, 0, 0), 0.25), width=3)
+    _headline(c, d, 96, ry + 16, c.W - 192, rh - 32, 80 if c.tall else 72, color=p["on_accent"])
+    if c.price:
+        _price_seal(c, img, d, c.W - 170, ry - 110, 106 if not c.tall else 116, points=22)
+    _offer(c, d, c.W - 60, ry + rh + 26)
+    _contact(c, d, cy)
+    _footer(c, d, (205, 205, 210))
+    return img
+
+
+def _kifahari(c):                   # elegant: double border, oval photo, ornament
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    d = ImageDraw.Draw(img)
+    gold = _acc_text(p)
+    d.rounded_rectangle([28, 28, c.W - 28, c.H - 28], radius=30, outline=gold, width=4)
+    d.rounded_rectangle([46, 46, c.W - 46, c.H - 46], radius=22, outline=gold, width=1)
+    y = c.top + 24
+    if c.biz:
+        t, f, _sz = _fit_line(d, c.biz.upper(), True, c.W - 380, 30, 16)
+        tw = d.textlength(t, font=f)
+        _t(d, (c.W / 2, y), t, f, p["text"], "ma")
+        ly = y + 18
+        for sgn in (-1, 1):
+            xe = c.W / 2 + sgn * (tw / 2 + 28)
+            d.line([(xe, ly), (xe + sgn * 110, ly)], fill=gold, width=2)
+            d.polygon([(xe + sgn * 120, ly), (xe + sgn * 128, ly - 6), (xe + sgn * 136, ly), (xe + sgn * 128, ly + 6)],
+                      fill=gold)
+    y += 70
+    cy = c.cbot - 66
+    head_h = 230 if c.tall else 170
+    price_h = 70 if c.price else 0
+    oh = max(240, int(cy - 40 - head_h - price_h - 30 - y))
+    ow = int(min(c.W - 300, oh * 0.80))
+    x0, ring = (c.W - ow) // 2, 10
+    rm = _oval_mask(ow + 2 * ring, oh + 2 * ring)
+    img.paste(Image.new("RGB", rm.size, gold), (x0 - ring, y - ring), rm)
+    img.paste(_cover(c.photo, ow, oh), (x0, y), _oval_mask(ow, oh))
+    _offer(c, d, min(c.W - 40, x0 + ow + 90), y + 30)
+    y += oh + 22
+    _headline(c, d, 70, y, c.W - 140, head_h, 76)
+    y += head_h
+    if c.price:
+        txt, f, _sz = _fit_line(d, _fmt_price(c.price), True, c.W - 240, 64, 22)
+        _t(d, (c.W / 2, y), txt, f, gold, "ma")
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _miale(c):                      # sunburst rays behind a circular photo
+    p = c.p
+    base = p["accent"]
+    img = Image.new("RGB", (c.W, c.H), base)
+    d = ImageDraw.Draw(img)
+    pill_h = 56 if c.biz else 0
+    hh = 230 if c.tall else 170
+    top_y = c.top + pill_h + 18 + hh + 10
+    cy = c.cbot - 66
+    dia = max(300, int(min(c.W - 240, cy - 46 - top_y)))
+    ccx, ccy = c.W / 2, top_y + dia / 2
+    ray = _lerp(base, (0, 0, 0), 0.14)
+    n_rays, R = 28, max(c.W, c.H) * 1.4
+    for i in range(0, n_rays, 2):
+        a0, a1 = 2 * math.pi * i / n_rays, 2 * math.pi * (i + 1) / n_rays
+        d.polygon([(ccx, ccy), (ccx + R * math.cos(a0), ccy + R * math.sin(a0)),
+                   (ccx + R * math.cos(a1), ccy + R * math.sin(a1))], fill=ray)
+    _biz_pill(c, d, c.top, fill=p["on_accent"], color=base)
+    _headline(c, d, 70, c.top + pill_h + 18, c.W - 140, hh, 84 if c.tall else 74, color=p["on_accent"])
+    r = dia / 2
+    _shadow(img, (ccx - r - 14, ccy - r - 14, ccx + r + 14, ccy + r + 14), int(r), offset=(6, 16), blur=20, alpha=150)
+    _paste_circle(img, ccx, ccy, r + 14, (255, 255, 255))
+    img.paste(_cover(c.photo, dia, dia), (int(ccx - r), int(ccy - r)), _circle_mask(dia))
+    if c.price:
+        _price_seal(c, img, d, ccx + r * 0.72, ccy + r * 0.74, 104 if c.tall else 90, points=20)
+    _offer(c, d, c.W - 50, top_y + 6)
+    _contact(c, d, cy)
+    _footer(c, d, p["on_accent"])
+    return img
+
+
+def _kibandiko(c):                  # tilted sticker photo with label and price stickers
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    d = ImageDraw.Draw(img)
+    stripe = _lerp(p["bg2"], p["accent"], 0.14)
+    for k in range(-c.H, c.W, 120):
+        d.polygon([(k, 0), (k + 56, 0), (k + 56 + c.H, c.H), (k + c.H, c.H)], fill=stripe)
+    y = _biz_pill(c, d, c.top) + 30
+    cy = c.cbot - 66
+    area_h = cy - 120 - y
+    pw = int(min(c.W - 180, area_h * 0.88))
+    ph = int(min(area_h - 20, pw * 1.08))
+    pcx, pcy = c.W / 2, y + area_h / 2 + 24
+    m = 22
+    layer = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
+    ImageDraw.Draw(layer).rounded_rectangle([0, 0, pw - 1, ph - 1], radius=40, fill=(255, 255, 255, 255))
+    layer.paste(_cover(c.photo, pw - 2 * m, ph - 2 * m).convert("RGBA"), (m, m),
+                _rr_mask((pw - 2 * m, ph - 2 * m), 28))
+    _tilted(img, layer, pcx, pcy, -4)
+    lw, lh = int(c.W - 220), (200 if c.tall else 160)
+    lab = Image.new("RGBA", (lw, lh), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(lab)
+    ld.rounded_rectangle([0, 0, lw - 1, lh - 1], radius=28, fill=tuple(p["accent"]) + (255,))
+    _headline(c, ld, 30, 14, lw - 60, lh - 28, 62, color=p["on_accent"])
+    _tilted(img, lab, pcx - 24, pcy - ph / 2 + 10, -4)
+    if c.price:
+        sw_, sh_ = 440, 132
+        sk = Image.new("RGBA", (sw_, sh_), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(sk)
+        sd.rounded_rectangle([0, 0, sw_ - 1, sh_ - 1], radius=36, fill=(255, 255, 255, 255))
+        sd.rounded_rectangle([8, 8, sw_ - 9, sh_ - 9], radius=30, fill=tuple(p["accent"]) + (255,))
+        _t(sd, (sw_ / 2, 16), "BEI", _F(22, False), p["on_accent"], "ma")
+        txt, f, _sz = _fit_line(sd, _fmt_price(c.price), True, sw_ - 60, 58, 18)
+        _t(sd, (sw_ / 2, 46), txt, f, p["on_accent"], "ma")
+        _tilted(img, sk, c.W - 270, pcy + ph / 2 - 6, 5)
+    d = ImageDraw.Draw(img)
+    _offer(c, d, c.W - 60, y + 6)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _tabaka(c):                     # wavy photo edge with a ribbon, colour panel below
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    split = int(c.H * (0.56 if c.tall else 0.54))
+    amp, length = 34, 520
+    edge = [(x, split + amp * math.sin(2 * math.pi * x / length)) for x in range(0, c.W + 1, 10)]
+    ph_h = int(split + amp + 8)
+    mask = Image.new("L", (c.W, ph_h), 0)
+    ImageDraw.Draw(mask).polygon([(0, 0), (c.W, 0)] + edge[::-1], fill=255)
+    img.paste(_cover(c.photo, c.W, ph_h), (0, 0), mask)
+    _band(img, 0, 280, 150, 0)
+    d = ImageDraw.Draw(img)
+    d.polygon(edge + [(x, y + 28) for x, y in edge[::-1]], fill=p["accent"])
+    _biz_pill(c, d, c.top)
+    cy = c.cbot - 66
+    y0 = int(split + amp + 52)
+    price_h = 118 if c.price else 0
+    hh = max(110, cy - 24 - price_h - 18 - y0)
+    _headline(c, d, 64, y0, c.W - 128, hh, 78 if c.tall else 70, align="left")
+    if c.price:
+        _price_badge(c, img, d, 64, cy - 22 - price_h)
+    _offer(c, d, c.W - 60, cy - 22 - price_h + 26)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _kapsuli(c):                    # capsule-shaped photo over soft concentric discs
+    p = c.p
+    img = _gradient(c.W, c.H, p["bg1"], p["bg2"])
+    base_r = int(c.H * 0.46)
+    for k, a in enumerate((26, 34, 44)):
+        _paste_circle(img, c.W // 2, int(c.H * 0.46), base_r - k * 130, p["accent"], a)
+    d = ImageDraw.Draw(img)
+    y = _biz_pill(c, d, c.top) + 20
+    hh = 220 if c.tall else 160
+    _headline(c, d, 70, y, c.W - 140, hh, 80 if c.tall else 72)
+    y += hh + 8
+    cy = c.cbot - 66
+    ch = int(cy - 40 - y)
+    cw = int(min(c.W - 380, ch * 0.62))
+    x0, ring = (c.W - cw) // 2, 10
+    _shadow(img, (x0 - ring, y - ring, x0 + cw + ring, y + ch + ring), (cw + 2 * ring) // 2,
+            offset=(6, 16), blur=18, alpha=140)
+    _paste_rr(img, (x0 - ring, y - ring, x0 + cw + ring, y + ch + ring), (cw + 2 * ring) // 2, p["ring"])
+    img.paste(_cover(c.photo, cw, ch), (x0, y), _rr_mask((cw, ch), cw // 2))
+    if c.price:
+        _price_circle(c, img, d, x0 + cw - 10, y + ch - 60, 100 if c.tall else 90)
+    _offer(c, d, min(c.W - 40, x0 + cw + 190), y + 30)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _kamera(c):                     # camera viewfinder frame over a full-bleed photo
+    p = c.p
+    acc = _vivid(p["accent"])
+    img = _cover(c.photo, c.W, c.H)
+    _band(img, 0, 300, 170, 0)
+    _band(img, int(c.H * 0.56), c.H, 0, 235)
+    d = ImageDraw.Draw(img)
+    _biz_pill(c, d, c.top, fill=(18, 18, 24), color=acc)
+    cy = c.cbot - 66
+    info_h = 210 if c.tall else 170
+    info_y = cy - 26 - info_h
+    m, arm, w = 56, 100, 8
+    ty, by = c.top + 92, info_y - 30
+    for x, yy, dx, dy in ((m, ty, 1, 1), (c.W - m, ty, -1, 1), (m, by, 1, -1), (c.W - m, by, -1, -1)):
+        d.line([(x, yy), (x + dx * arm, yy)], fill=(255, 255, 255), width=w)
+        d.line([(x, yy), (x, yy + dy * arm)], fill=(255, 255, 255), width=w)
+    mx, my = c.W / 2, (ty + by) / 2
+    d.line([(mx - 26, my), (mx + 26, my)], fill=(235, 235, 235), width=3)
+    d.line([(mx, my - 26), (mx, my + 26)], fill=(235, 235, 235), width=3)
+    _offer(c, d, c.W - m - 24, ty + 30)
+    if c.price:
+        _price_badge(c, img, d, c.W - 60, info_y + (info_h - 118) / 2, align="right", size=54, max_w=420)
+    hw = c.W - 120 - (430 if c.price else 0)
+    _headline(c, d, 60, info_y, hw, info_h, 72 if c.tall else 66, align="left", color=(255, 255, 255), shadow=True)
+    _contact(c, d, cy)
+    _footer(c, d, (205, 205, 210))
+    return img
 
 
 _RENDERERS = {
@@ -607,12 +876,16 @@ _RENDERERS = {
     "gazeti": _gazeti, "neon": _neon, "mstari": _mstari,
     "fremu": _fremu, "dirisha": _dirisha, "lebo": _lebo, "kioo": _kioo,
     "pop": _pop, "minimal": _minimal, "kona": _kona,
+    "mkanda": _mkanda, "kifahari": _kifahari, "miale": _miale, "kibandiko": _kibandiko,
+    "tabaka": _tabaka, "kapsuli": _kapsuli, "kamera": _kamera,
 }
 TEMPLATE_NAMES = {
     "kadi": "Kadi", "kubwa": "Picha Kubwa", "gawanya": "Gawanyika", "duara": "Duara",
     "gazeti": "Jarida", "neon": "Neon", "mstari": "Bei Kubwa",
     "fremu": "Polaroid", "dirisha": "Dirisha", "lebo": "Lebo ya Bei", "kioo": "Kioo",
     "pop": "Pop", "minimal": "Minimal", "kona": "Kona",
+    "mkanda": "Utepe", "kifahari": "Kifahari", "miale": "Miale", "kibandiko": "Kibandiko",
+    "tabaka": "Mawimbi", "kapsuli": "Kapsuli", "kamera": "Kamera",
 }
 
 TEMPLATE_IDS = tuple(TEMPLATE_NAMES)
@@ -654,7 +927,7 @@ def _sample_photo():
     return img
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=1024)
 def preview_jpeg(template_id: str, palette_id: str, fmt: str) -> bytes:
     img = _render_image(template_id, palette_id, _sample_photo(), headline="Vitenge Vipya Vimewasili",
                         price="25000", offer="Punguzo 20%", biz="Amina Fashion", phone="0712 345 678",

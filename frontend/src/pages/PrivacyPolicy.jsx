@@ -30,6 +30,7 @@ Wakalabot, Karagwe, Tanzania. Kwa taarifa za akaunti za wafanyabiashara na watum
 - Namba ya simu (imethibitishwa kwa SMS), username na neno la siri (hashing)
 - Jina la biashara, simu ya mawasiliano na rangi unayopenda (si lazima)
 - Msimbo wa mwaliko, na chanzo kilichokuleta (kwa mfano tangazo au kiungo)
+- Mwaliko: mtu aliyekualika anaona jina lako la mtumiaji kwa sehemu tu (herufi chache), tarehe uliyojisajili, na kama umetengeneza kazi yako ya kwanza au umenunua. Haoni namba yako ya simu wala kazi zako.
 - Salio la credits na historia yake
 
 ### Maudhui ya Studio
@@ -131,6 +132,7 @@ Wakalabot, Karagwe, Tanzania. For the account data of businesses and Studio user
 - Phone number (verified by SMS), username and password (hash)
 - Business name, contact phone and preferred color (optional)
 - Referral code, and the source that brought you (for example an ad or a link)
+- Referrals: the person who invited you sees only part of your username (a few letters), the date you joined, and whether you made your first job or bought credits. They do not see your phone number or your work.
 - Credit balance and its history
 
 ### Studio content

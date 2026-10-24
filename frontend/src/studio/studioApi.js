@@ -54,7 +54,8 @@ export const studioApi = {
   updateMe: (data) => client.patch('/me', data),
   catalog: () => client.get('/catalog'),
   packs: () => client.get('/packs'),
-  wallet: () => client.get('/wallet'),
+    wallet: () => client.get('/wallet'),
+  referrals: () => client.get('/referrals'),
   submitPayment: (pack_id, reference) => client.post('/payments', { pack_id, reference }),
   createJob: (formData) => client.post('/jobs', formData),
   getJob: (id) => client.get(`/jobs/${id}`),
@@ -66,7 +67,8 @@ export const studioApi = {
 // Downloads without a page navigation. A plain <a href="/api/..."> is a navigation request,
 // and the PWA service worker answers navigations with the landing page. fetch() is not affected.
 export async function downloadMedia(path, filename) {
-  const res = await fetch(mediaUrl(path))
+  // const res = await fetch(mediaUrl(path))
+  const res = await fetch(mediaUrl(path), { cache: 'no-store' })
   const type = res.headers.get('content-type') || ''
   if (!res.ok || !type.startsWith('image/')) throw new Error('link-expired')
   const blob = await res.blob()

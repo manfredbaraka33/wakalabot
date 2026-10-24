@@ -27,7 +27,10 @@ from app.core import settings
 from app.db import get_db
 from app.limiter import limiter
 from app.sms import send_sms
-from app.studio_credits import InsufficientCredits, adjust_credits, free_watermarked_used_today, pricelists_today
+from app.studio_credits import (
+    ACTIVATION_REWARD, ACTIVATION_REWARD_CAP, InsufficientCredits, adjust_credits,
+    free_watermarked_used_today, pricelists_today,
+)
 from app.studio_models import (
     Creator, CreatorJob, CreatorOtp, CreatorPayment, CreatorService, CreditLedger, CreditPack,
 )
@@ -562,7 +565,8 @@ async def media(job_id: uuid.UUID, t: str = Query(...), download: int = 0, db: A
     if STORAGE.resolve() not in path.parents or not path.exists():
         raise HTTPException(404, "Faili haipo.")
     return FileResponse(
-        path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"},
+                path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600", "Vary": "Origin"},
+
         filename=f"wakalabot-{str(job_id)[:8]}.jpg" if download else None,
         content_disposition_type="attachment" if download else "inline",
     )
@@ -588,6 +592,68 @@ async def wallet(creator: Creator = Depends(get_current_creator), db: AsyncSessi
         "payments": [{"id": str(p.id), "pack_id": p.pack_id, "amount_tzs": p.amount_tzs, "credits": p.credits,
                       "bonus_credits": p.bonus_credits, "reference": p.reference, "status": p.status,
                       "admin_note": p.admin_note, "created_at": p.created_at.isoformat()} for p in pays],
+    }
+
+
+
+def _mask_name(u: str) -> str:
+    u = u or ""
+    if len(u) <= 3:
+        return u[:1] + "***"
+    return u[:2] + "*" * min(6, len(u) - 3) + u[-1]
+
+
+@router.get("/referrals")
+async def my_referrals(creator: Creator = Depends(get_current_creator), db: AsyncSession = Depends(get_db)):
+    friends = (await db.execute(
+        select(Creator).where(Creator.referred_by == creator.id)
+        .order_by(Creator.created_at.desc()).limit(200))).scalars().all()
+    ids = [f.id for f in friends]
+
+    ledger = (await db.execute(
+        select(CreditLedger).where(CreditLedger.creator_id == creator.id, CreditLedger.kind == "referral")
+    )).scalars().all()
+    act: dict[str, int] = {}      # reward for a friend's first job, keyed by friend id
+    by_ref: dict[str, int] = {}   # reward for a friend's first purchase, keyed by payment reference
+    for l in ledger:
+        if l.ref and l.ref.startswith("act:"):
+            act[l.ref[4:]] = act.get(l.ref[4:], 0) + l.delta
+        elif l.ref:
+            by_ref[l.ref] = by_ref.get(l.ref, 0) + l.delta
+
+    made_ids: set = set()
+    pay_refs: dict = {}
+    if ids:
+        made_ids = set((await db.execute(
+            select(CreatorJob.creator_id).where(CreatorJob.creator_id.in_(ids), CreatorJob.status == "done").distinct()
+        )).scalars().all())
+        for cid, ref in (await db.execute(
+            select(CreatorPayment.creator_id, CreatorPayment.reference)
+            .where(CreatorPayment.creator_id.in_(ids), CreatorPayment.status == "approved")
+        )).all():
+            pay_refs.setdefault(cid, []).append(ref)
+
+    out = []
+    for f in friends:
+        earned = act.get(str(f.id), 0) + sum(by_ref.get(r, 0) for r in pay_refs.get(f.id, []))
+        out.append({
+            "name": _mask_name(f.username),
+            "joined": f.created_at.isoformat() if f.created_at else None,
+            "made": f.id in made_ids,
+            "bought": f.id in pay_refs,
+            "earned": earned,
+        })
+    rewarded = len(act)
+    return {
+        "code": creator.referral_code,
+        "reward_per_friend": ACTIVATION_REWARD,
+        "cap": ACTIVATION_REWARD_CAP,
+        "invited": len(friends),
+        "active": sum(1 for x in out if x["made"]),
+        "rewarded": rewarded,
+        "slots_left": max(0, ACTIVATION_REWARD_CAP - rewarded),
+        "earned": sum(l.delta for l in ledger),
+        "friends": out,
     }
 
 
