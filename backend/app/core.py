@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     STUDIO_FREE_DAILY_WATERMARKED: int = 5    # daily free watermarked posters: OFF (set 3 to bring it back)
     STUDIO_FREE_PRICELIST_DAILY: int = 5      # safety cap on free price lists per account per day
     STUDIO_PRICELIST_WATERMARK: bool = True    # False = price lists free and clean, like before
+    STUDIO_BG_REMOVE_ENABLED: bool = True      # background removal add-on on posters
+    STUDIO_BG_MODEL: str = "silueta"           # silueta (43MB, light) | u2netp (5MB, lightest) | u2net (176MB) | isnet-general-use (170MB, best, needs 2GB RAM)
     STUDIO_PAY_NUMBER: str = ""
     STUDIO_PAY_NAME: str = ""
     STUDIO_ADMIN_PHONE: str = ""            # gets an SMS when someone submits a payment

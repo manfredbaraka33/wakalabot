@@ -50,6 +50,7 @@ export default function StudioCreate() {
   const [bizName, setBizName] = useState('')
   const [phone, setPhone] = useState('')
   const [useFree, setUseFree] = useState(true)
+  const [removeBg, setRemoveBg] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [needCredits, setNeedCredits] = useState(false)
@@ -77,7 +78,10 @@ export default function StudioCreate() {
   const freeAvailable = (catalog?.free_daily ?? 0) > 0 && !!svc && svc.watermark_cost != null && freeLeft > 0
   const free = useFree && freeAvailable
   const cleanCost = svc?.cost ?? 0
-  const cost = free ? 0 : cleanCost
+  const bgSvc = catalog?.services?.find((s) => s.key === 'bg_remove')
+  const bgOn = removeBg && !!bgSvc && itemType === 'product'
+  const bgCost = bgOn ? bgSvc.cost : 0
+  const cost = (free ? 0 : cleanCost) + bgCost
   const inProgress = !!jobId && (!job || job.status === 'queued' || job.status === 'running')
 
   async function onPick(e) {
@@ -102,7 +106,7 @@ export default function StudioCreate() {
     if (!photo) return setError(`Pakia picha ya ${copy.name.toLowerCase()}.`)
     if (!product.trim() || !price.trim()) return setError(`Weka jina la ${copy.name.toLowerCase()} na bei.`)
     const freeNow = !forceClean && free
-    const costNow = freeNow ? 0 : cleanCost
+    const costNow = (freeNow ? 0 : cleanCost) + bgCost
     if (costNow > (creator?.credits ?? 0)) {
       setNeedCredits(true)
       return setError(`Unahitaji credits ${costNow}, una ${creator?.credits ?? 0}.`)
@@ -112,6 +116,7 @@ export default function StudioCreate() {
       const fd = new FormData()
       fd.append('mode', 'template')
       fd.append('item_type', itemType)
+      fd.append('remove_bg', String(bgOn))
       fd.append('fmt', fmt)
       fd.append('template', template)
       fd.append('palette', palette)
@@ -141,7 +146,7 @@ export default function StudioCreate() {
         <StudioResult job={job} templates={catalog?.templates} palettes={catalog?.palettes}
           filename="tangazo.jpg" onTweak={() => setJobId(null)} onNew={resetAll} newLabel={`${copy.name} nyingine`}
           onRemoveWatermark={job.watermark ? () => generate(true) : null}
-          cleanCost={cleanCost} busy={busy} error={error} needCredits={needCredits} />
+          cleanCost={cleanCost + bgCost} busy={busy} error={error} needCredits={needCredits} />
       </div>
     )
   }
@@ -196,6 +201,21 @@ export default function StudioCreate() {
           </div>
           <input type="file" accept="image/*" onChange={onPick} className="hidden" />
         </label>
+
+                {bgSvc && itemType === 'product' && (
+          <label className="flex items-start gap-3 rounded-xl border border-gray-800 bg-gray-950 p-3 cursor-pointer">
+            <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} className="mt-0.5 accent-indigo-500" />
+            <div>
+              <p className="text-sm text-white">
+                Ondoa mandhari ya picha (remove background)
+                <span className="ml-2 text-[10px] font-bold uppercase text-amber-300 bg-amber-500/15 rounded-full px-1.5 py-0.5">+{bgSvc.cost} credits</span>
+              </p>
+              <p className="text-xs text-gray-500">
+                Bidhaa yako inawekwa kwenye mandhari safi ya rangi ulizochagua. Inafaa kwa picha ya bidhaa moja (chupa, viatu, simu, begi). Isipofanikiwa, tunakurudishia credits.
+              </p>
+            </div>
+          </label>
+        )}
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>

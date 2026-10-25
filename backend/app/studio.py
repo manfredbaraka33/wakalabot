@@ -358,6 +358,7 @@ def _job_out(j: CreatorJob) -> dict:
         "created_at": j.created_at.isoformat() if j.created_at else None,
         "media_url": url, "headline": meta.get("headline"), "transcript": meta.get("transcript"),
         "template": meta.get("template"), "palette": meta.get("palette"),
+        "bg_removed": meta.get("bg_removed"), "bg_requested": bool((j.params or {}).get("remove_bg")),
         "fmt": (j.params or {}).get("fmt"),
     }
 
@@ -390,6 +391,7 @@ async def create_job(
     offer: str = Form("", max_length=22),
     prompt: str = Form("", max_length=600),
     item_type: Literal["product", "service"] = Form("product"),
+    remove_bg: bool = Form(False),
     title: str = Form("", max_length=30),
     tagline: str = Form("", max_length=50),
     items_json: str = Form("", max_length=6000),
@@ -486,6 +488,17 @@ async def create_job(
         else:
             watermark, cost = False, svc.cost
 
+    bg_cost = 0
+    if remove_bg and mode == "template":
+        bg_svc = await db.get(CreatorService, "bg_remove")
+        if not settings.STUDIO_BG_REMOVE_ENABLED or not bg_svc or not bg_svc.active:
+            raise HTTPException(503, "Huduma ya kuondoa mandhari haipatikani kwa sasa.")
+        bg_cost = bg_svc.cost
+        cost += bg_cost
+        free = free and bg_cost == 0              # a job stays "free" only if the add-on is free too
+    else:
+        remove_bg = False
+
     job_id = uuid.uuid4()
     in_dir = IN_DIR / str(job_id)
     in_dir.mkdir(parents=True, exist_ok=True)
@@ -497,6 +510,7 @@ async def create_job(
 
         params = {
             "fmt": fmt, "template": template, "palette": palette, "item_type": item_type,
+            "remove_bg": remove_bg, "bg_cost": bg_cost,
             "product_name": product_name.strip(), "price": price.strip(), "business_name": biz,
             "phone": contact, "headline": headline.strip(), "offer": offer.strip(), "prompt": prompt.strip(),
         }

@@ -22,3 +22,4 @@ google_genai
 slowapi
 qrcode[pil]
 reportlab
+onnxruntime

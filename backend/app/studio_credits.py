@@ -53,17 +53,17 @@ async def free_watermarked_used_today(db: AsyncSession, creator_id) -> int:
 
 
 async def refund_job(db: AsyncSession, job: CreatorJob, reason: str) -> bool:
-    """Idempotent. Call with the job row locked (SELECT ... FOR UPDATE)."""
-    if job.cost <= 0:
+    """Idempotent. Refunds whatever was spent on this job and not yet refunded, so partial refunds
+    (for example a failed background removal) never block a later full refund.
+    Call with the job row locked (SELECT ... FOR UPDATE)."""
+    spent = await db.scalar(select(func.coalesce(func.sum(-CreditLedger.delta), 0)).where(
+        CreditLedger.job_id == job.id, CreditLedger.kind == "spend"))
+    refunded = await db.scalar(select(func.coalesce(func.sum(CreditLedger.delta), 0)).where(
+        CreditLedger.job_id == job.id, CreditLedger.kind == "refund"))
+    due = int(spent or 0) - int(refunded or 0)
+    if due <= 0:
         return False
-    already = await db.scalar(
-        select(func.count(CreditLedger.id)).where(
-            CreditLedger.job_id == job.id, CreditLedger.kind == "refund"
-        )
-    )
-    if already:
-        return False
-    await adjust_credits(db, job.creator_id, job.cost, "refund", job_id=job.id, note=reason)
+    await adjust_credits(db, job.creator_id, due, "refund", job_id=job.id, note=reason)
     return True
 
 

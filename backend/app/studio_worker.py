@@ -18,7 +18,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.core import settings
 from app.db import engine
 from app.studio_config import image_cost_usd
-from app.studio_credits import refund_job, reward_referral_on_first_job
+from app import studio_bg
+from app.studio_credits import adjust_credits, refund_job, reward_referral_on_first_job
 from app.studio_models import Creator, CreatorJob
 from app.studio_providers import JobRejected, ProviderError, generate_scene, make_plan, to_mp3
 from app.studio_pricelist import render_pricelist, resolve_choice as resolve_pl_choice
@@ -93,11 +94,13 @@ async def _run(job_id):
     async with SessionLocal() as db:
         job = await db.get(CreatorJob, job_id)
         p, mode, watermark = dict(job.params), job.mode, job.watermark
+        job_owner = job.creator_id
 
     photo_path = IN_DIR / str(job_id) / "photo.jpg"
     photo_bytes = photo_path.read_bytes() if photo_path.exists() else None
     fmt = p.get("fmt", "square")
     api_cost = 0.0
+    bg_removed = False
 
     if mode == "pricelist":
         items = [
@@ -123,6 +126,15 @@ async def _run(job_id):
             price, offer = p.get("price", ""), p.get("offer", "")
             headline = p.get("headline") or _fallback_headline(p.get("product_name") or "Bidhaa", p.get("item_type", "product"))
             template_id, palette_id = resolve_choice(p.get("template"), p.get("palette"))
+            if p.get("remove_bg"):
+                shot = await studio_bg.studio_shot(photo, palette_id, fmt)
+                if shot is not None:
+                    photo, bg_removed = shot, True
+                elif int(p.get("bg_cost") or 0) > 0:      # could not cut it out: keep the photo, refund the add-on
+                    async with SessionLocal() as rdb:
+                        await adjust_credits(rdb, job_owner, int(p["bg_cost"]), "refund", job_id=job_id,
+                                             note="Mandhari haikuondolewa")
+                        await rdb.commit()
         else:  # AI posters (switched off at the API while AI_POSTERS_ENABLED is False)
             audio = None
             if mode == "voice":
@@ -147,7 +159,8 @@ async def _run(job_id):
             headline=headline, price=price, offer=offer, biz=p["business_name"],
             phone=p.get("phone", ""), fmt=fmt, watermark=watermark,
         )
-        meta = {"headline": headline, "template": template_id, "palette": palette_id, "transcript": transcript}
+        meta = {"headline": headline, "template": template_id, "palette": palette_id,
+                "transcript": transcript, "bg_removed": bg_removed}
 
     (OUT_DIR / f"{job_id}.jpg").write_bytes(jpg)
     async with SessionLocal() as db:
@@ -236,6 +249,8 @@ async def _loop():
             raise
         except Exception:
             logger.exception("studio worker loop error")
+            
+        studio_bg.unload_if_idle()
         await asyncio.sleep(2)
 
 

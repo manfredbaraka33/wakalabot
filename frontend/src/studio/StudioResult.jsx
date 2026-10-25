@@ -47,7 +47,13 @@ export default function StudioResult({
     <div className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-5 space-y-4">
       <p className="text-sm font-semibold text-emerald-400">Iko tayari!</p>
       <img src={url} alt="Matokeo" className={`w-full mx-auto rounded-xl ${WIDTH[job.fmt] || 'max-w-md'}`} />
+      
       {(tName || pName) && <p className="text-center text-xs text-gray-500">Muundo: {tName || '—'} · Rangi: {pName || '—'}</p>}
+      {job.bg_requested && job.bg_removed === false && (
+        <p className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+          Mandhari ya picha hii haikuweza kuondolewa, kwa hiyo tumetumia picha ya awali. Credits za kuondoa mandhari zimerudishwa.
+        </p>
+      )}
 
       {job.watermark && onRemoveWatermark && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
