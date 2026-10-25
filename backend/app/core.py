@@ -49,7 +49,11 @@ class Settings(BaseSettings):
     STUDIO_FREE_PRICELIST_DAILY: int = 5      # safety cap on free price lists per account per day
     STUDIO_PRICELIST_WATERMARK: bool = True    # False = price lists free and clean, like before
     STUDIO_BG_REMOVE_ENABLED: bool = True      # background removal add-on on posters
-    STUDIO_BG_MODEL: str = "silueta"           # silueta (43MB, light) | u2netp (5MB, lightest) | u2net (176MB) | isnet-general-use (170MB, best, needs 2GB RAM)
+    STUDIO_BG_MODEL: str = "silueta"           # silueta (43MB, light) | u2netp (5MB, lightest) | u2net (176MB)
+    STUDIO_SHOT_MODEL: str = "gemini-nano-banana-2.1"   # AI studio re-shoot (image editing)| isnet-general-use (170MB, best, needs 2GB RAM)
+    STUDIO_SHOT_DAILY_CAP: int = 10             # AI studio photos per seller per day
+    STUDIO_SHOT_GLOBAL_DAILY_CAP: int = 60      # AI studio photos for ALL sellers per day (protects your Google balance)
+    STUDIO_SHOT_REQUIRE_PURCHASE: bool = True   # locked until the seller's first approved payment
     STUDIO_PAY_NUMBER: str = ""
     STUDIO_PAY_NAME: str = ""
     STUDIO_ADMIN_PHONE: str = ""            # gets an SMS when someone submits a payment

@@ -133,7 +133,7 @@ async def _run(job_id):
                 elif int(p.get("bg_cost") or 0) > 0:      # could not cut it out: keep the photo, refund the add-on
                     async with SessionLocal() as rdb:
                         await adjust_credits(rdb, job_owner, int(p["bg_cost"]), "refund", job_id=job_id,
-                                             note="Mandhari haikuondolewa")
+                                             note="Picha ya studio haikukamilika")
                         await rdb.commit()
         else:  # AI posters (switched off at the API while AI_POSTERS_ENABLED is False)
             audio = None
