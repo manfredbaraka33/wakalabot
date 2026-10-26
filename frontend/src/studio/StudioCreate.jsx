@@ -248,7 +248,7 @@ export default function StudioCreate() {
           </div>
           <div>
             <label className="block text-sm text-gray-300 mb-1.5">Kichwa <span className="text-gray-600">(si lazima)</span></label>
-            <LimitInput value={headline} onChange={setHeadline} max={LIMITS.headline} placeholder="Tutaandika kwa ajili yako" />
+            <LimitInput value={headline} onChange={setHeadline} max={LIMITS.headline} placeholder="Simu mpya mjini" />
           </div>
         </div>
 
