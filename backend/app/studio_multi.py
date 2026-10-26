@@ -1,21 +1,25 @@
 """Studio posters with 2 or 3 photos: 4 designs for each count, x 8 palettes x 4 sizes.
 The first photo is the main one. Text shrinks and wraps; it is never cut with "..."."""
 import io
+import math
 import random
 from functools import lru_cache
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
-from app.studio_draw import _cover, _gradient, _jpeg, _paste_rr, _rr_mask, _shadow
+from app.studio_draw import _cover, _gradient, _jpeg, _paste_circle, _paste_rr, _rr_mask, _shadow
 from app.studio_templates import (
-    PALETTES, PALETTE_IDS, _band, _biz_pill, _contact, _ctx, _footer, _headline, _offer,
-    _price_circle, _tilted,
+    PALETTES, PALETTE_IDS, _arch_mask, _band, _biz_pill, _circle_mask, _contact, _ctx, _footer,
+    _headline, _offer, _price_circle, _tilted,
 )
 
 MULTI_NAMES = {
-    2: {"pacha": "Pacha", "ndani": "Picha Ndani", "mshazari": "Mshazari", "mapacha": "Polaroid Mbili"},
-    3: {"kuu": "Kuu na Mbili", "filamu": "Filamu", "shabiki": "Polaroid Tatu", "mozaiki": "Mozaiki"},
+    2: {"pacha": "Pacha", "ndani": "Picha Ndani", "mshazari": "Mshazari", "mapacha": "Polaroid Mbili",
+        "duara2": "Duara Mbili", "dirisha2": "Dirisha Mbili", "fremu2": "Fremu Mbili", "hexa2": "Pembe Sita"},
+    3: {"kuu": "Kuu na Mbili", "filamu": "Filamu", "shabiki": "Polaroid Tatu", "mozaiki": "Mozaiki",
+        "hexa3": "Sega la Asali", "penta": "Pembe Tano", "fremu3": "Fremu Tatu", "duara3": "Miduara Mitatu"},
 }
+
 MULTI_IDS = {n: tuple(names) for n, names in MULTI_NAMES.items()}
 MULTI_LIST = {str(n): [{"id": k, "name": v} for k, v in names.items()] for n, names in MULTI_NAMES.items()}
 
@@ -250,11 +254,268 @@ def _mozaiki(c):                     # one tall photo on the left, two stacked o
     return img
 
 
+# ── shape helpers for the newer designs ───────────────────────────────────────
+def _ngon(cx, cy, r, n, rot=-90.0):
+    """Corners of a regular polygon (n=5 pentagon, n=6 hexagon). rot=-90 points one corner up."""
+    return [(cx + r * math.cos(math.radians(rot + 360.0 * k / n)),
+             cy + r * math.sin(math.radians(rot + 360.0 * k / n))) for k in range(n)]
+
+
+def _poly_mask(size, pts):
+    s = 3                                    # draw 3x bigger, then shrink: smooth edges
+    m = Image.new("L", (size * s, size * s), 0)
+    ImageDraw.Draw(m).polygon([(x * s, y * s) for x, y in pts], fill=255)
+    return m.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def _poly_photo(img, photo, cx, cy, r, n, rot=-90.0, ring=None, ring_w=0):
+    r = int(r)
+    if r < 24:
+        return
+    size = int(2 * (r + ring_w * 1.3)) + 10
+    ox, oy = int(cx - size / 2), int(cy - size / 2)
+    inner = [(x - ox, y - oy) for x, y in _ngon(cx, cy, r, n, rot)]
+    mask = _poly_mask(size, inner)
+    shadow = mask.filter(ImageFilter.GaussianBlur(14)).point(lambda v: int(v * 0.5))
+    img.paste(Image.new("RGB", (size, size), (0, 0, 0)), (ox, oy + 12), shadow)
+    if ring:
+        outer = [(x - ox, y - oy) for x, y in _ngon(cx, cy, r + ring_w * 1.3, n, rot)]
+        img.paste(Image.new("RGB", (size, size), tuple(ring)), (ox, oy), _poly_mask(size, outer))
+    img.paste(_cover(photo, size, size), (ox, oy), mask)
+
+
+def _frame_layer(photo, w, h, frame_rgb, fw=12, mw=14):
+    """A picture frame (coloured border + white mat) as an RGBA layer, ready for _tilted()."""
+    layer = Image.new("RGBA", (w, h), tuple(frame_rgb) + (255,))
+    ImageDraw.Draw(layer).rectangle([fw, fw, w - 1 - fw, h - 1 - fw], fill=(250, 250, 247, 255))
+    iw, ih = w - 2 * (fw + mw), h - 2 * (fw + mw)
+    if iw > 10 and ih > 10:
+        layer.paste(_cover(photo, iw, ih).convert("RGBA"), (fw + mw, fw + mw))
+    return layer
+
+
+# ── 4 more designs for 2 photos ───────────────────────────────────────────────
+def _duara2(c):                      # two overlapping circles, the second a little lower
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(300, int(y_end - y))
+    pad = 56
+    stag = 0.16 if area > 640 else 0.0
+    D = int(min((c.W - 2 * pad) / 1.85, area / (1 + stag) - 14))
+    ov = int(D * 0.15)
+    x0 = (c.W - (2 * D - ov)) // 2
+    top = y + (area - D * (1 + stag)) / 2
+    for i in range(2):
+        ccx = x0 + D / 2 + i * (D - ov)
+        ccy = top + D / 2 + i * D * stag
+        _shadow(img, (ccx - D / 2, ccy - D / 2, ccx + D / 2, ccy + D / 2), D // 2, offset=(0, 14), blur=16, alpha=120)
+        _paste_circle(img, ccx, ccy, D / 2 + 8, p["accent"])
+        img.paste(_cover(c.photos[i], D, D), (int(ccx - D / 2), int(ccy - D / 2)), _circle_mask(D))
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, x0 + D - ov / 2, top + D * (1 + stag) - 6, 90 if c.tall else 84)
+    _offer(c, d, c.W - pad - 10, top + 20)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _dirisha2(c):                    # two arched windows, the second one a little lower
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(300, int(y_end - y))
+    pad, gap, ring = 64, 28, 9
+    pw = (c.W - 2 * pad - gap) // 2
+    stag = 46 if area > 460 else 0
+    ph = max(int(min(area - stag, pw * 1.6)), pw // 2 + 80)
+    top = int(y + (area - stag - ph) / 2)
+    for i in range(2):
+        x0 = pad + i * (pw + gap)
+        yy = top + i * stag
+        rm = _arch_mask(pw + 2 * ring, ph + 2 * ring)
+        img.paste(Image.new("RGB", rm.size, tuple(p["accent"])), (x0 - ring, yy - ring), rm)
+        img.paste(_cover(c.photos[i], pw, ph), (x0, yy), _arch_mask(pw, ph))
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, c.W / 2, top + stag + ph - 4, 90 if c.tall else 84)
+    _offer(c, d, c.W - pad - 12, top + 20)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _fremu2(c):                      # two framed pictures, slightly tilted, like a gallery wall
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(300, int(y_end - y))
+    pad, gap = 64, 36
+    inner = c.W - 2 * pad
+    wA, wB = int(inner * 0.55), int(inner * 0.39)
+    hA = int(min(area - 40, wA * 1.3))
+    hB = int(min(hA * 0.86, wB * 1.2))
+    top = y + (area - (hA + 30)) / 2
+    _tilted(img, _frame_layer(c.photos[0], wA, hA, p["accent"], 12, 14), pad + wA / 2, top + hA / 2, -2.5)
+    _tilted(img, _frame_layer(c.photos[1], wB, hB, p["accent"], 10, 12),
+            pad + inner - wB / 2, top + hA + 30 - hB / 2, 3)
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, pad + wA + gap / 2, top + hA + 10, 88 if c.tall else 82)
+    _offer(c, d, c.W - pad - 10, top + 16)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _hexa2(c):                       # two hexagon photos, the second one lower
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(300, int(y_end - y))
+    gap = 26
+    R = int(min((c.W - 120 - gap) / (2 * math.sqrt(3)), area / 2.6))
+    hexw = math.sqrt(3) * R
+    stag = 0.45 * R
+    mid_y = y + area / 2 - stag / 2
+    for i in range(2):
+        ccx = c.W / 2 + (-1 if i == 0 else 1) * (hexw + gap) / 2
+        _poly_photo(img, c.photos[i], ccx, mid_y + i * stag, R, 6, -90, p["accent"], 7)
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, c.W / 2, mid_y + stag + R * 0.92, 90 if c.tall else 84)
+    _offer(c, d, c.W - 64, y + 12)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+# ── 4 more designs for 3 photos ───────────────────────────────────────────────
+def _hexa3(c):                       # honeycomb: a row of three on short posters, a triangle on tall ones
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(300, int(y_end - y))
+    gap, s3 = 24, math.sqrt(3)
+    inner = c.W - 120
+    r_row = min((inner - 2 * gap) / (3 * s3), area / 2.3)
+    r_tri = min((inner - gap) / (2 * s3), area / 3.7)
+    if r_row >= r_tri:
+        R = int(r_row)
+        hexw = s3 * R
+        mid = y + area / 2
+        spots = [(c.W / 2 - hexw - gap, mid, 1), (c.W / 2, mid, 0), (c.W / 2 + hexw + gap, mid, 2)]
+        price_at = (c.W / 2 + hexw / 2 + gap / 2, mid + R * 0.92)
+    else:
+        R = int(r_tri)
+        hexw = s3 * R
+        row_h = 1.5 * R + gap * 0.9
+        top_y = y + (area - (2 * R + row_h)) / 2 + R
+        spots = [(c.W / 2 - (hexw + gap) / 2, top_y, 0), (c.W / 2 + (hexw + gap) / 2, top_y, 1),
+                 (c.W / 2, top_y + row_h, 2)]
+        price_at = (c.W / 2 + hexw * 0.58, top_y + row_h + R * 0.72)
+    for ccx, ccy, idx in spots:
+        _poly_photo(img, c.photos[idx], ccx, ccy, R, 6, -90, p["accent"], 7)
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, price_at[0], price_at[1], 90 if c.tall else 84)
+    _offer(c, d, c.W - 64, y + 12)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _penta(c):                       # main photo in a pentagon, the other two as round photos at its feet
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(300, int(y_end - y))
+    R = int(min((c.W - 140) / 2.75, area / 2.05))
+    rc = int(R * 0.36)
+    py = y + (area - 1.95 * R) / 2 + R
+    _poly_photo(img, c.photos[0], c.W / 2, py, R, 5, -90, p["accent"], 8)
+    for sgn, idx in ((-1, 1), (1, 2)):
+        ccx, ccy = c.W / 2 + sgn * 0.98 * R, py + 0.58 * R
+        _shadow(img, (ccx - rc, ccy - rc, ccx + rc, ccy + rc), rc, offset=(0, 12), blur=14, alpha=120)
+        _paste_circle(img, ccx, ccy, rc + 8, p["accent"])
+        img.paste(_cover(c.photos[idx], 2 * rc, 2 * rc), (int(ccx - rc), int(ccy - rc)), _circle_mask(2 * rc))
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, c.W / 2, py + 0.84 * R, 88 if c.tall else 82)
+    _offer(c, d, c.W - 64, y + 10)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _fremu3(c):                      # gallery wall: one large frame and two smaller ones, slightly tilted
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(320, int(y_end - y))
+    pad, gap = 60, 34
+    inner = c.W - 2 * pad
+    wA = int(inner * 0.54)
+    wB = inner - wA - gap
+    hA = int(min(area - 24, wA * 1.3))
+    hB = (hA - gap) // 2
+    top = y + (area - hA) / 2
+    bx = pad + wA + gap + wB / 2
+    _tilted(img, _frame_layer(c.photos[0], wA, hA, p["accent"], 12, 14), pad + wA / 2, top + hA / 2, -2.2)
+    _tilted(img, _frame_layer(c.photos[1], wB, hB, p["accent"], 10, 12), bx, top + hB / 2, 2.6)
+    _tilted(img, _frame_layer(c.photos[2], wB, hB, p["accent"], 10, 12), bx, top + hB + gap + hB / 2, -2.6)
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, pad + wA - 6, top + hA - 6, 90 if c.tall else 84)
+    _offer(c, d, c.W - pad - 6, top + 16)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
+def _duara3(c):                      # one big round photo and two smaller ones touching it
+    p = c.p
+    img, d, y = _base(c)
+    y = _head(c, d, y)
+    cy, y_end = _zone(c, y, 100 if c.price else 0)
+    area = max(320, int(y_end - y))
+    gap = 18
+    Db = int(min((c.W - 120) / 1.5, (area - gap) / 1.2))
+    Ds = int(Db * 0.6)
+    ov = int(Db * 0.1)
+    x0 = (c.W - (Db + Ds - ov)) // 2
+    mid = y + area / 2
+    spots = [(x0 + Db / 2, mid, Db, 0),
+             (x0 + Db - ov + Ds / 2, mid - Ds / 2 - gap / 2, Ds, 1),
+             (x0 + Db - ov + Ds / 2, mid + Ds / 2 + gap / 2, Ds, 2)]
+    for ccx, ccy, dia, idx in spots:
+        r = dia / 2
+        _shadow(img, (ccx - r, ccy - r, ccx + r, ccy + r), int(r), offset=(0, 14), blur=16, alpha=120)
+        _paste_circle(img, ccx, ccy, r + 8, p["accent"])
+        img.paste(_cover(c.photos[idx], dia, dia), (int(ccx - r), int(ccy - r)), _circle_mask(dia))
+    d = ImageDraw.Draw(img)
+    if c.price:
+        _price_circle(c, img, d, x0 + Db * 0.5, mid + Db / 2 + 4, 90 if c.tall else 84)
+    _offer(c, d, c.W - 64, y + 12)
+    _contact(c, d, cy)
+    _footer(c, d, p["muted"])
+    return img
+
+
 _RENDERERS = {
     "pacha": _pacha, "ndani": _ndani, "mshazari": _mshazari, "mapacha": _mapacha,
+    "duara2": _duara2, "dirisha2": _dirisha2, "fremu2": _fremu2, "hexa2": _hexa2,
     "kuu": _kuu, "filamu": _filamu, "shabiki": _shabiki, "mozaiki": _mozaiki,
+    "hexa3": _hexa3, "penta": _penta, "fremu3": _fremu3, "duara3": _duara3,
 }
-
 
 def resolve_multi_choice(template, palette, n):
     ids = MULTI_IDS.get(n) or MULTI_IDS[2]
@@ -290,7 +551,7 @@ def _sample_photo(i):
     return img
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=1024)
 def preview_multi_jpeg(template_id: str, palette_id: str, fmt: str, n: int) -> bytes:
     photos = [_sample_photo(i) for i in range(n)]
     img = _render_img(template_id, palette_id, photos, "Bidhaa Bora Kwa Bei Nafuu", "25000", "Punguzo 20%",

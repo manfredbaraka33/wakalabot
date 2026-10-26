@@ -3,6 +3,7 @@ import { Coins, FolderOpen, Loader2, Receipt, Sparkles, User } from 'lucide-reac
 import WakalaLogo from '../components/Wakalalogo'
 import { useStudio } from './StudioContext'
 import ThemeToggle from '../components/ThemeToggle'
+import MiniFooter from '../components/MiniFooter'
 
 const TABS = [
   { to: '/studio/app', label: 'Tangazo', short: 'Tangazo', icon: Sparkles, end: true },
@@ -39,7 +40,7 @@ export default function StudioShell() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <Link to="/studio/app" className="flex items-center gap-2 min-w-0">
             <span className="min-w-0 overflow-hidden"><WakalaLogo /></span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-fuchsia-300 bg-fuchsia-500/15 rounded-full px-2 py-0.5 shrink-0">Studio</span>
+            {/* <span className="text-[10px] font-bold uppercase tracking-widest text-fuchsia-300 bg-fuchsia-500/15 rounded-full px-2 py-0.5 shrink-0">Studio</span> */}
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {TABS.map(({ to, label, icon: Icon, end, free }) => (
@@ -77,6 +78,7 @@ export default function StudioShell() {
           ))}
         </div>
       </nav>
+      <MiniFooter />
     </div>
   )
 }
