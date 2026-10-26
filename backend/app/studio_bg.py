@@ -4,6 +4,8 @@ Returns None on ANY failure: the caller then keeps the original photo and refund
 import asyncio
 import io
 import logging
+import time
+from pathlib import Path
 from typing import Optional
 
 from google import genai
@@ -92,6 +94,57 @@ async def studio_shot(photo: Image.Image, palette_id: str, fmt: str) -> Optional
             return None
 
 
+SHOTS_DIR = Path(__file__).resolve().parent.parent / "storage" / "studio" / "shots"
+SHOT_TTL_SECONDS = 24 * 3600       # an AI studio photo is kept 24 hours, so design tweaks cost no new edit
+_last_purge = 0.0
+
+
+def _shot_path(creator_id, photo_hash: str) -> Optional[Path]:
+    if not photo_hash or not photo_hash.isalnum():
+        return None
+    return SHOTS_DIR / str(creator_id) / f"{photo_hash}.jpg"
+
+
+def shot_cached(creator_id, photo_hash: str) -> bool:
+    p = _shot_path(creator_id, photo_hash)
+    return bool(p and p.exists() and time.time() - p.stat().st_mtime < SHOT_TTL_SECONDS)
+
+
+def load_shot(creator_id, photo_hash: str) -> Optional[Image.Image]:
+    if not shot_cached(creator_id, photo_hash):
+        return None
+    try:
+        return Image.open(_shot_path(creator_id, photo_hash)).convert("RGB")
+    except Exception:
+        return None
+
+
+def save_shot(creator_id, photo_hash: str, img: Image.Image) -> None:
+    p = _shot_path(creator_id, photo_hash)
+    if p is None:
+        return
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        img.convert("RGB").save(p, "JPEG", quality=92)
+    except Exception:
+        logger.exception("could not save the studio photo")
+
+
 def unload_if_idle() -> None:
-    """Kept so the worker loop's call keeps working. Nothing to unload any more."""
-    return
+    """Called by the worker loop every couple of seconds. Once an hour it deletes studio photos older than 24 hours."""
+    global _last_purge
+    now = time.time()
+    if now - _last_purge < 3600:
+        return
+    _last_purge = now
+    try:
+        if not SHOTS_DIR.exists():
+            return
+        for f in SHOTS_DIR.rglob("*.jpg"):
+            if now - f.stat().st_mtime > SHOT_TTL_SECONDS:
+                f.unlink(missing_ok=True)
+        for d in SHOTS_DIR.iterdir():
+            if d.is_dir() and not any(d.iterdir()):
+                d.rmdir()
+    except Exception:
+        logger.exception("studio photo cleanup failed")

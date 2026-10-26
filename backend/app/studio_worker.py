@@ -19,6 +19,7 @@ from app.core import settings
 from app.db import engine
 from app.studio_config import image_cost_usd
 from app import studio_bg
+from app import studio_multi
 from app.studio_credits import adjust_credits, refund_job, reward_referral_on_first_job
 from app.studio_models import Creator, CreatorJob
 from app.studio_providers import JobRejected, ProviderError, generate_scene, make_plan, to_mp3
@@ -43,13 +44,9 @@ def _now():
 
 
 def _fallback_headline(name: str, item_type: str = "product") -> str:
-    if item_type == "service":
-        options = [f"{name} kwa Ubora Unaoutaka", f"Pata {name} Leo!",
-                   f"Tunafanya {name} kwa Weledi", f"Karibu Upate {name}"]
-    else:
-        options = [f"{name} Bora Kwa Bei Nafuu", f"Pata {name} Leo!",
-                   f"{name} Mpya Imewasili", f"Usikose {name}!"]
-    return random.choice(options)[:60]
+    """When the seller leaves the headline empty, use only what they typed: the product or service name.
+    Never invent claims (new, best, cheap) and never guess Swahili grammar around an unknown noun."""
+    return " ".join((name or "").split())[:60]
 
 
 async def _claim() -> uuid.UUID | None:
@@ -119,18 +116,39 @@ async def _run(job_id):
         meta = {"headline": p.get("title") or "Orodha ya Bei", "template": template_id, "palette": palette_id}
     else:
         transcript = ""
+        extra_photos = []
         if mode == "template":
             if not photo_bytes:
                 raise ProviderError("Picha haikupatikana.")
             photo = Image.open(io.BytesIO(photo_bytes)).convert("RGB")
             price, offer = p.get("price", ""), p.get("offer", "")
             headline = p.get("headline") or _fallback_headline(p.get("product_name") or "Bidhaa", p.get("item_type", "product"))
-            template_id, palette_id = resolve_choice(p.get("template"), p.get("palette"))
+            for i in range(2, int(p.get("n_photos") or 1) + 1):
+                ep = IN_DIR / str(job_id) / f"photo{i}.jpg"
+                if ep.exists():
+                    extra_photos.append(Image.open(io.BytesIO(ep.read_bytes())).convert("RGB"))
+            if extra_photos:
+                template_id, palette_id = studio_multi.resolve_multi_choice(
+                    p.get("template"), p.get("palette"), 1 + len(extra_photos))
+            else:
+                template_id, palette_id = resolve_choice(p.get("template"), p.get("palette"))
+                
             if p.get("remove_bg"):
-                shot = await studio_bg.studio_shot(photo, palette_id, fmt)
-                if shot is not None:
-                    photo, bg_removed = shot, True
-                elif int(p.get("bg_cost") or 0) > 0:      # could not cut it out: keep the photo, refund the add-on
+                hashes = p.get("photo_hashes") or [p.get("photo_hash") or ""]
+                originals = [photo] + extra_photos
+
+                async def _shoot(img, h):
+                    got = studio_bg.load_shot(job_owner, h)
+                    if got is None:
+                        got = await studio_bg.studio_shot(img, palette_id, fmt)
+                        if got is not None:
+                            studio_bg.save_shot(job_owner, h, got)
+                    return got
+
+                shots = await asyncio.gather(*[_shoot(img, h) for img, h in zip(originals, hashes)])
+                if len(shots) == len(originals) and all(s is not None for s in shots):
+                    photo, extra_photos, bg_removed = shots[0], list(shots[1:]), True
+                elif int(p.get("bg_cost") or 0) > 0:      # not every photo could be re-shot: keep the originals, refund the add-on
                     async with SessionLocal() as rdb:
                         await adjust_credits(rdb, job_owner, int(p["bg_cost"]), "refund", job_id=job_id,
                                              note="Picha ya studio haikukamilika")
@@ -154,8 +172,11 @@ async def _run(job_id):
             api_cost = image_cost_usd() + 0.002
             transcript = plan["transcript"]
 
+        render_fn, render_photo = render_template, photo
+        if extra_photos:
+            render_fn, render_photo = studio_multi.render_multi, [photo] + extra_photos
         jpg = await asyncio.to_thread(
-            render_template, template_id, palette_id, photo,
+            render_fn, template_id, palette_id, render_photo,
             headline=headline, price=price, offer=offer, biz=p["business_name"],
             phone=p.get("phone", ""), fmt=fmt, watermark=watermark,
         )

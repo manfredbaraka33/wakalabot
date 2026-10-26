@@ -14,7 +14,7 @@ const MODES = [
 
 const POINTS = [
   'Matangazo 3 na orodha ya bei ni BURE kila siku — ondoa alama kwa credits kidogo tu',
-  'Kiswahili sahihi — maneno ya tangazo yanaandikwa na mfumo, hakuna makosa ya AI',
+  'Maneno uliyoandika yanawekwa kama yalivyo kwenye tangazo — herufi hazibadiliki',
   'Lipa kidogo kidogo kwa M-Pesa, Tigo Pesa au Airtel Money',
   'Kazi yako ni ya faragha — hakuna ukurasa wa umma',
   'Kazi ikishindwa, credits zako zinarudi zenyewe',

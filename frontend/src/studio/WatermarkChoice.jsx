@@ -13,7 +13,7 @@ export default function WatermarkChoice({ free, onChange, freeLeft, cleanCost, n
           <div className="flex items-center gap-2">
             {free && !out ? <Check className="w-4 h-4 text-emerald-400" /> : <Heart className="w-4 h-4 text-gray-500" />}
             <span className="text-sm font-semibold text-white">Bure</span>
-            <span className="text-[10px] font-bold uppercase text-emerald-300 bg-emerald-500/15 rounded-full px-1.5 py-0.5">0 credits</span>
+            <span className="text-[10px] font-bold uppercase text-amber-200 bg-amber-700 rounded-full px-1.5 py-0.5">0 credits</span>
           </div>
           <p className="text-[11px] text-gray-500 mt-1">
             {out ? 'Za bure za leo zimeisha. Rudi kesho.' : `Alama ndogo ya Wakalabot chini ya ${noun}. Zimebaki ${freeLeft} leo.`}
@@ -23,7 +23,7 @@ export default function WatermarkChoice({ free, onChange, freeLeft, cleanCost, n
           <div className="flex items-center gap-2">
             {!free || out ? <Check className="w-4 h-4 text-emerald-400" /> : <span className="w-4 h-4" />}
             <span className="text-sm font-semibold text-white">Bila alama</span>
-            <span className="text-[10px] font-bold uppercase text-amber-300 bg-amber-500/15 rounded-full px-1.5 py-0.5">{cleanCost} credits</span>
+            <span className="text-[10px] font-bold uppercase text-amber-200 bg-amber-700 rounded-full px-1.5 py-0.5">{cleanCost} credits</span>
           </div>
           <p className="text-[11px] text-gray-500 mt-1">Safi kabisa, tayari kwa biashara yako.</p>
         </button>

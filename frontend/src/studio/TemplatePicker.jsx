@@ -3,7 +3,7 @@ import { Shuffle } from 'lucide-react'
 import { BASE_URL } from './studioApi'
 import { SIZES, aspectOf } from './sizes'
 
-const PREVIEW_PATH = { poster: 'template-preview', pricelist: 'pricelist-preview' }
+const PREVIEW_PATH = { poster: 'template-preview', pricelist: 'pricelist-preview', multi: 'multi-preview' }
 
 export function PalettePicker({ palettes = [], value, onChange, extra }) {
   return (
@@ -73,7 +73,7 @@ function PreviewTile({ src, name, aspect }) {
 }
 
 export default function TemplatePicker({
-  templates = [], palettes = [], template, palette, fmt, onTemplate, onPalette, paletteExtra, kind = 'poster',
+  templates = [], palettes = [], template, palette, fmt, onTemplate, onPalette, paletteExtra, kind = 'poster', previewExtra = '',
 }) {
   const previewPalette = palettes.some((p) => p.id === palette) ? palette : palettes[0]?.id
   const aspect = aspectOf(fmt)
@@ -102,7 +102,7 @@ export default function TemplatePicker({
               <p className="text-[11px] text-gray-300 mt-1 text-center">Nishangaze</p>
             </button>
             {templates.map((t) => {
-              const src = `${BASE_URL}/api/v1/studio/${path}?template=${t.id}&palette=${previewPalette}&fmt=${fmt}`
+              const src = `${BASE_URL}/api/v1/studio/${path}?template=${t.id}&palette=${previewPalette}&fmt=${fmt}${previewExtra}`
               return (
                 <button key={t.id} type="button" onClick={() => onTemplate(t.id)}
                   className={`rounded-xl border p-1.5 transition-colors ${template === t.id ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-800 hover:border-gray-700'}`}>

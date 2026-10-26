@@ -34,6 +34,8 @@ from app.studio_credits import (
 from app.studio_models import (
     Creator, CreatorJob, CreatorOtp, CreatorPayment, CreatorService, CreditLedger, CreditPack,
 )
+from app import studio_bg
+from app.studio_multi import MULTI_IDS, MULTI_LIST, preview_multi_jpeg
 from app.studio_pricelist import PL_TEMPLATE_IDS, PL_TEMPLATE_LIST, preview_jpeg as pl_preview_jpeg
 from app.studio_templates import PALETTE_IDS, PALETTE_LIST, TEMPLATE_IDS, TEMPLATE_LIST, preview_jpeg
 from app.studio_worker import IN_DIR, STORAGE
@@ -327,6 +329,7 @@ async def catalog(creator: Creator = Depends(get_current_creator), db: AsyncSess
         "pricelist_watermark": settings.STUDIO_PRICELIST_WATERMARK,
         "pricelist_free_left": max(0, settings.STUDIO_FREE_PRICELIST_DAILY - await pricelists_today(db, creator.id)),
         "shot": await _shot_public(db, creator),
+        "multi_templates": MULTI_LIST,
         "credits": creator.credits,
     }
 
@@ -391,9 +394,12 @@ async def _shot_state(db: AsyncSession, creator: Creator):
     used_all = used_me = 0
     for cid, params in rows:
         if isinstance(params, dict) and params.get("remove_bg"):
-            used_all += 1
+            new = params.get("bg_new")
+            if new is None:
+                new = 0 if params.get("bg_cached") else 1
+            used_all += int(new)
             if cid == creator.id:
-                used_me += 1
+                used_me += int(new)
     return (unlocked,
             max(0, settings.STUDIO_SHOT_DAILY_CAP - used_me),
             max(0, settings.STUDIO_SHOT_GLOBAL_DAILY_CAP - used_all))
@@ -427,6 +433,8 @@ async def create_job(
     tagline: str = Form("", max_length=50),
     items_json: str = Form("", max_length=6000),
     photo: Optional[UploadFile] = File(None),
+    photo2: Optional[UploadFile] = File(None),
+    photo3: Optional[UploadFile] = File(None),
     audio: Optional[UploadFile] = File(None),
     creator: Creator = Depends(get_current_creator),
     db: AsyncSession = Depends(get_db),
@@ -438,7 +446,12 @@ async def create_job(
     if not biz:
         raise HTTPException(400, "Weka jina la biashara kwenye Akaunti yako au kwenye fomu.")
     contact = phone.strip() or creator.contact_phone or ""
-    valid_templates = PL_TEMPLATE_IDS if mode == "pricelist" else TEMPLATE_IDS
+
+    n_extra = sum(1 for f in (photo2, photo3) if f and f.filename) if mode == "template" else 0
+    if n_extra:
+        valid_templates = MULTI_IDS.get(1 + n_extra, ())
+    else:
+        valid_templates = PL_TEMPLATE_IDS if mode == "pricelist" else TEMPLATE_IDS
     if template not in valid_templates and template != "random":
         raise HTTPException(400, "Muundo haujulikani.")
     if palette not in PALETTE_IDS and palette not in ("random", "auto"):
@@ -471,6 +484,17 @@ async def create_job(
             photo_bytes = await asyncio.to_thread(_normalize_photo, raw)
         except Exception:
             raise HTTPException(400, "Picha haisomeki. Jaribu nyingine.")
+    extra_photos: list[bytes] = []
+    if mode == "template":
+        for extra in (photo2, photo3):
+            if extra and extra.filename:
+                raw_x = await extra.read()
+                if len(raw_x) > 8 * 1024 * 1024:
+                    raise HTTPException(413, "Picha ni kubwa mno. Tumia chini ya 8MB.")
+                try:
+                    extra_photos.append(await asyncio.to_thread(_normalize_photo, raw_x))
+                except Exception:
+                    raise HTTPException(400, "Picha haisomeki. Jaribu nyingine.")
     if mode == "template" and (not photo_bytes or not product_name.strip() or not price.strip()):
         raise HTTPException(400, "Template inahitaji picha, jina la bidhaa na bei.")
     if mode == "text" and len(prompt.strip()) < 8:
@@ -520,34 +544,51 @@ async def create_job(
             watermark, cost = False, svc.cost
 
     bg_cost = 0
-    if remove_bg and mode == "template" and item_type == "product":
+    bg_cached = False
+    bg_new = 0
+    all_bytes = ([photo_bytes] if photo_bytes else []) + extra_photos
+    photo_hashes = [hashlib.sha256(b).hexdigest()[:24] for b in all_bytes]
+    photo_hash = photo_hashes[0] if photo_hashes else ""
+    if remove_bg and mode == "template" and item_type == "product" and photo_bytes:
         bg_svc = await db.get(CreatorService, "bg_remove")
         if not settings.STUDIO_BG_REMOVE_ENABLED or not bg_svc or not bg_svc.active:
             raise HTTPException(503, "Picha ya studio (AI) haipatikani kwa sasa.")
         unlocked, left_me, left_all = await _shot_state(db, creator)
         if not unlocked:
             raise HTTPException(403, "Picha ya studio (AI) inafunguliwa baada ya kununua credits mara ya kwanza.")
-        if left_all <= 0:
-            raise HTTPException(429, "Picha za studio (AI) zimefikia kikomo cha leo. Jaribu kesho.")
-        if left_me <= 0:
-            raise HTTPException(429, f"Umefikia kikomo cha picha za studio za leo ({settings.STUDIO_SHOT_DAILY_CAP}). Jaribu kesho.")
-        bg_cost = bg_svc.cost
+        seen = set()
+        for h in photo_hashes:                    # a photo already re-shot in the last 24 hours costs nothing
+            if h in seen or studio_bg.shot_cached(creator.id, h):
+                continue
+            seen.add(h)
+            bg_new += 1
+        bg_cached = bg_new == 0
+        if bg_new > 0:
+            if left_all < bg_new:
+                raise HTTPException(429, "Picha za studio (AI) zimefikia kikomo cha leo. Jaribu kesho.")
+            if left_me < bg_new:
+                raise HTTPException(429, f"Umefikia kikomo cha picha za studio za leo ({settings.STUDIO_SHOT_DAILY_CAP}). Jaribu kesho.")
+        bg_cost = bg_svc.cost * bg_new
         cost += bg_cost
         free = free and bg_cost == 0              # a job stays "free" only if the add-on is free too
     else:
         remove_bg = False
+
+    
     job_id = uuid.uuid4()
     in_dir = IN_DIR / str(job_id)
     in_dir.mkdir(parents=True, exist_ok=True)
     try:
         if photo_bytes:
             (in_dir / "photo.jpg").write_bytes(photo_bytes)
+            for i, xb in enumerate(extra_photos, start=2):
+                (in_dir / f"photo{i}.jpg").write_bytes(xb)
         if audio_bytes:
             (in_dir / "audio.bin").write_bytes(audio_bytes)
 
         params = {
             "fmt": fmt, "template": template, "palette": palette, "item_type": item_type,
-            "remove_bg": remove_bg, "bg_cost": bg_cost,
+            "remove_bg": remove_bg, "bg_cost": bg_cost, "bg_cached": bg_cached, "photo_hash": photo_hash, "n_photos": 1 + len(extra_photos), "photo_hashes": photo_hashes, "bg_new": bg_new,
             "product_name": product_name.strip(), "price": price.strip(), "business_name": biz,
             "phone": contact, "headline": headline.strip(), "offer": offer.strip(), "prompt": prompt.strip(),
         }
@@ -754,4 +795,14 @@ async def pricelist_preview(request: Request, template: str, palette: str,
     if template not in PL_TEMPLATE_IDS or palette not in PALETTE_IDS:
         raise HTTPException(404, "Haipatikani.")
     jpg = await asyncio.to_thread(pl_preview_jpeg, template, palette, fmt)
+    return Response(content=jpg, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@router.get("/multi-preview")
+@limiter.limit("600/minute")
+async def multi_preview(request: Request, template: str, palette: str, n: int = 2,
+                        fmt: Literal["square", "portrait", "a4", "story"] = "square"):
+    if n not in (2, 3) or template not in MULTI_IDS.get(n, ()) or palette not in PALETTE_IDS:
+        raise HTTPException(404, "Haipatikani.")
+    jpg = await asyncio.to_thread(preview_multi_jpeg, template, palette, fmt, n)
     return Response(content=jpg, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
