@@ -99,6 +99,9 @@ app.include_router(instagram_router, prefix="/api/v1")
 app.include_router(studio_router, prefix="/api/v1")
 app.include_router(studio_admin_router, prefix="/api/v1")
 
+from app.studio_video_api import router as studio_video_router
+app.include_router(studio_video_router, prefix="/api/v1")
+
 
 @app.get("/", response_model=dict)
 async def root():

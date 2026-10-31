@@ -138,6 +138,11 @@ def unload_if_idle() -> None:
         return
     _last_purge = now
     try:
+        from app import studio_video
+        studio_video.maintenance()
+    except Exception:
+        logger.exception("video cleanup failed")
+    try:
         if not SHOTS_DIR.exists():
             return
         for f in SHOTS_DIR.rglob("*.jpg"):

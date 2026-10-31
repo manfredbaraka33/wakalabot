@@ -36,6 +36,7 @@ import RootEntry from './components/RootEntry'
 import UpdateToast from './components/UpdateToast'
 import AppHome from './pages/AppHome'
 import StudioPriceList from './studio/StudioPriceList'
+import StudioVideo from './studio/StudioVideo'
 
 
 import { Outlet } from 'react-router-dom'
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="credits" element={<StudioWallet />} />
             <Route path="account" element={<StudioAccount />} />
             <Route path="price-list" element={<StudioPriceList />} />
+            <Route path="video" element={<StudioVideo />} />
           </Route>
         </Route>
 

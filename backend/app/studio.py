@@ -363,6 +363,7 @@ def _job_out(j: CreatorJob) -> dict:
         "media_url": url, "headline": meta.get("headline"), "transcript": meta.get("transcript"),
         "template": meta.get("template"), "palette": meta.get("palette"),
         "bg_removed": meta.get("bg_removed"), "bg_requested": bool((j.params or {}).get("remove_bg")),
+        "media_type": "video" if str(j.result_path or "").endswith(".mp4") else "image",
         "fmt": (j.params or {}).get("fmt"),
     }
 
@@ -657,7 +658,7 @@ async def media(job_id: uuid.UUID, t: str = Query(...), download: int = 0, db: A
     if STORAGE.resolve() not in path.parents or not path.exists():
         raise HTTPException(404, "Faili haipo.")
     return FileResponse(
-                path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600", "Vary": "Origin"},
+                path, media_type=("video/mp4" if str(path).endswith(".mp4") else "image/jpeg"), headers={"Cache-Control": "private, max-age=3600", "Vary": "Origin"},
 
         filename=f"wakalabot-{str(job_id)[:8]}.jpg" if download else None,
         content_disposition_type="attachment" if download else "inline",

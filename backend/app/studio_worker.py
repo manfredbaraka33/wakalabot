@@ -93,6 +93,11 @@ async def _run(job_id):
         p, mode, watermark = dict(job.params), job.mode, job.watermark
         job_owner = job.creator_id
 
+    if mode == "video":                  # video jobs run in their own task so they never block poster jobs
+        from app import studio_video
+        studio_video.start_video_task(job_id, p, job_owner)
+        return
+
     photo_path = IN_DIR / str(job_id) / "photo.jpg"
     photo_bytes = photo_path.read_bytes() if photo_path.exists() else None
     fmt = p.get("fmt", "square")

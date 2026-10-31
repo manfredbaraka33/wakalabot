@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     STUDIO_SHOT_DAILY_CAP: int = 10             # AI studio photos per seller per day
     STUDIO_SHOT_GLOBAL_DAILY_CAP: int = 60      # AI studio photos for ALL sellers per day (protects your Google balance)
     STUDIO_SHOT_REQUIRE_PURCHASE: bool = True   # locked until the seller's first approved payment
+    STUDIO_VIDEO_ENABLED: bool = True
+    STUDIO_VIDEO_MODEL: str = "gemini-omni-1.1-flash"
+    STUDIO_VIDEO_DELIVERY: str = "uri"            # "uri" = download by link (recommended); "inline" = base64 in the reply
+    STUDIO_VIDEO_COST_PER_SEC_USD: float = 0.15   # for margin tracking: set the real price per second of video
+    STUDIO_VIDEO_CLIP_SECONDS: int = 8            # length of a one-photo clip
+    STUDIO_VIDEO_REQUIRE_PURCHASE: bool = True    # locked until the first approved payment
+    STUDIO_VIDEO_DAILY_CAP: int = 6               # videos per seller per day
+    STUDIO_VIDEO_GLOBAL_DAILY_CAP: int = 40       # videos for ALL sellers per day
+    STUDIO_VIDEO_CONCURRENCY: int = 2             # videos generating at the same time
+    STUDIO_TTS_MODEL: str = ""                    # Gemini text-to-speech model id (optional, for voice-over)
+    STUDIO_TTS_VOICE: str = "Kore"
     STUDIO_PAY_NUMBER: str = ""
     STUDIO_PAY_NAME: str = ""
     STUDIO_ADMIN_PHONE: str = ""            # gets an SMS when someone submits a payment

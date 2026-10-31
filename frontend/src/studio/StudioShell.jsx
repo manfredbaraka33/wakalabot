@@ -1,5 +1,5 @@
 import { Link, NavLink, Navigate, Outlet } from 'react-router-dom'
-import { Coins, FolderOpen, Loader2, Receipt, Sparkles, User } from 'lucide-react'
+import { Coins, FolderOpen, Loader2, Receipt, Sparkles, User, Video } from 'lucide-react'
 import WakalaLogo from '../components/Wakalalogo'
 import { useStudio } from './StudioContext'
 import ThemeToggle from '../components/ThemeToggle'
@@ -8,6 +8,7 @@ import MiniFooter from '../components/MiniFooter'
 const TABS = [
   { to: '/studio/app', label: 'Tangazo', short: 'Tangazo', icon: Sparkles, end: true },
   { to: '/studio/app/price-list', label: 'Orodha ya Bei', short: 'Orodha', icon: Receipt, free: false },
+  { to: '/studio/app/video', label: 'Video', short: 'Video', icon: Video },
   { to: '/studio/app/library', label: 'Kazi Zangu', short: 'Kazi', icon: FolderOpen },
   { to: '/studio/app/credits', label: 'Credits', short: 'Credits', icon: Coins },
   { to: '/studio/app/account', label: 'Akaunti', short: 'Akaunti', icon: User },
@@ -67,7 +68,7 @@ export default function StudioShell() {
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-gray-800 bg-gray-900/95 backdrop-blur"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           {TABS.map(({ to, short, icon: Icon, end, free }) => (
             <NavLink key={to} to={to} end={end}
               className={({ isActive }) => `relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium ${

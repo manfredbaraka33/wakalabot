@@ -54,7 +54,9 @@ export const studioApi = {
   updateMe: (data) => client.patch('/me', data),
   catalog: () => client.get('/catalog'),
   packs: () => client.get('/packs'),
-    wallet: () => client.get('/wallet'),
+  wallet: () => client.get('/wallet'),
+  videoCatalog: () => client.get('/video/catalog'),
+  createVideo: (fd) => client.post('/video/jobs', fd),
   referrals: () => client.get('/referrals'),
   submitPayment: (pack_id, reference) => client.post('/payments', { pack_id, reference }),
   createJob: (formData) => client.post('/jobs', formData),
@@ -67,15 +69,15 @@ export const studioApi = {
 // Downloads without a page navigation. A plain <a href="/api/..."> is a navigation request,
 // and the PWA service worker answers navigations with the landing page. fetch() is not affected.
 export async function downloadMedia(path, filename) {
-  // const res = await fetch(mediaUrl(path))
   const res = await fetch(mediaUrl(path), { cache: 'no-store' })
   const type = res.headers.get('content-type') || ''
-  if (!res.ok || !type.startsWith('image/')) throw new Error('link-expired')
+  if (!res.ok || !(type.startsWith('image/') || type.startsWith('video/'))) throw new Error('link-expired')
   const blob = await res.blob()
+  const name = type.startsWith('video/') ? filename.replace(/\.[a-z0-9]+$/i, '') + '.mp4' : filename
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = filename
+  a.download = name
   document.body.appendChild(a)
   a.click()
   a.remove()

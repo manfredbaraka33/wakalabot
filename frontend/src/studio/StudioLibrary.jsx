@@ -44,7 +44,10 @@ export default function StudioLibrary() {
           const [label, cls] = BADGE[j.status] || BADGE.queued
           return (
             <div key={j.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col">
-              <div className="bg-gray-950 flex items-center justify-center" style={{ aspectRatio: aspectOf(j.fmt) }}>
+              <div className="relative bg-gray-950 flex items-center justify-center" style={{ aspectRatio: j.media_type === 'video' ? '9 / 16' : aspectOf(j.fmt) }}>
+                {j.media_type === 'video' && j.media_url && (
+                  <video src={mediaUrl(j.media_url)} controls playsInline preload="metadata" className="absolute inset-0 z-10 w-full h-full object-cover bg-black" />
+                )}
                 {j.media_url ? (
                   <img src={mediaUrl(j.media_url)} alt={j.headline || 'Tangazo'} loading="lazy" className="w-full h-full object-cover" />
                 ) : j.status === 'queued' || j.status === 'running' ? (
